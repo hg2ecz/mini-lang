@@ -1,0 +1,17 @@
+#if arch == "x86_64"
+  #if os == "linux"
+    #include "../lib/linux.mini"
+  #else
+    #error "Linux is required"
+  #endif
+#else
+  #error "x86_64 is required"
+#endif
+
+program {
+    if sys_getpid() > 0 {
+        return 42
+    } else {
+        return 1
+    }
+}

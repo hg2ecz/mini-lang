@@ -1,0 +1,1 @@
+program { let a: usize = 256; let b: usize = 256; let overflow: usize = a * b; return 0 }

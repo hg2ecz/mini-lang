@@ -1,0 +1,1 @@
+program { let n: bool = 42; return 1 }

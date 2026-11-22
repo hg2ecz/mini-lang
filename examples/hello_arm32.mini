@@ -1,0 +1,5 @@
+#include "../lib/linux_armv7.mini"
+program {
+    let letter:i64=65
+    unsafe { return sys_write(1,raw_addr(letter),1) - 1 }
+}

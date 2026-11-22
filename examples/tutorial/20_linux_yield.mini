@@ -1,0 +1,6 @@
+// Mini 4.1.3 teaching example: 20_linux_yield.mini
+#include "../../lib/linux_sys.mini"
+program {
+    let result: i64 = sys_sched_yield()
+    if result == 0 { return 42 } else { return 1 }
+}

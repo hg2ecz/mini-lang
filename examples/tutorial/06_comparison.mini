@@ -1,0 +1,4 @@
+// Mini 4.1.3 teaching example: 06_comparison.mini
+program {
+    if 30 < 42 { return 42 } else { return 1 }
+}

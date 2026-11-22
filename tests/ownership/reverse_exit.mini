@@ -1,0 +1,19 @@
+struct Guard { code: i64 }
+fn __drop_Guard(g: Guard) {
+    unsafe {
+        asm {
+            in rax = 60
+            in rdi = g.code
+            syscall
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+}
+fn make(n:i64)->Guard { unsafe { return Guard(n) } }
+program {
+    let first:Guard = make(61)
+    let second:Guard = make(62)
+    return 42
+}

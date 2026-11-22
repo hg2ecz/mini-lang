@@ -1,0 +1,7 @@
+# Mini device map v1. Half-open memory regions: start..end.
+# Flash and SRAM are separate AVR address spaces.
+device = atmega328p
+flash = 0x0000..0x8000
+ram = 0x0100..0x0900
+stack = 256
+features = jmp,call,mul,lpm

@@ -1,0 +1,5 @@
+// Expected compile error: compile-time index out of bounds.
+program {
+    let bytes: [usize; 3] = [0; 3]
+    return bytes[3] as i64
+}

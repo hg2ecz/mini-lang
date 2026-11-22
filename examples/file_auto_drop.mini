@@ -1,0 +1,23 @@
+// Create a file named "a" with one byte, e.g. printf 'Z' > a.
+// Linux x86-64, AArch64, ARM32 are little-endian in this example.
+#include "../lib/io/file.mini"
+
+program {
+    // 0x61 ('a') followed by NUL bytes in a little-endian i64.
+    let path: i64 = 97
+    let buffer: i64 = 0
+    unsafe {
+        let fd: i64 = file_open_readonly(raw_addr(path))
+        if fd < 0 {
+            return 1
+        }
+        let file: File = file_adopt(fd)
+        let count: i64 = file_read(file, raw_addr(buffer), 1)
+        if count != 1 {
+            return 2
+        }
+        sys_write(1, raw_addr(buffer), 1)
+        // 'file' is automatically dropped on this return.
+        return 0
+    }
+}

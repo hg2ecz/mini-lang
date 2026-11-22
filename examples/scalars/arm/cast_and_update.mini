@@ -1,0 +1,8 @@
+fn increment(value: u8) -> u8 {
+    return value + 1
+}
+program {
+    let x: u8 = 40
+    x = increment(x)
+    return (x + 1) as i64
+}

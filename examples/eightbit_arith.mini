@@ -1,0 +1,36 @@
+#if arch == "avr8"
+    #include "../lib/eightbit/avr_atmega328p.mini"
+#elseif arch == "mos6510"
+    #include "../lib/eightbit/c64.mini"
+#else
+    #error requires an 8-bit target
+#endif
+
+fn add(a: usize, b: usize) -> usize {
+    return a + b
+}
+
+fn difference(a: usize, b: usize) -> usize {
+    return a - b
+}
+
+// Values cross Mini function boundaries using the private static 16-bit ABI.
+program {
+    let x: usize = 20
+    let y: usize = 22
+    let z: usize = add(x, y)
+    let expected: usize = 42
+#if arch == "avr8"
+    let bias: usize = 10       // 42 - 10 = 32: PB5 bit
+#else
+    let bias: usize = 36       // 42 - 36 = 6: VIC-II blue
+#endif
+    let color: usize = difference(z, bias)
+    let zero: usize = 0
+    if z == expected {
+        unsafe { platform_signal_value(color) }
+    } else {
+        unsafe { platform_signal_value(zero) }
+    }
+    return 0
+}

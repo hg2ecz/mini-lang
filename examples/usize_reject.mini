@@ -1,0 +1,5 @@
+program {
+    let signed: i64 = -1
+    let invalid: usize = signed
+    return 0
+}

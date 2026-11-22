@@ -1,0 +1,11 @@
+// Mini 4.1.3 teaching example: 16_arch_conditional.mini
+#if pointer_bits == 16
+    fn target_answer() -> i64 { return 42 }
+#elseif pointer_bits == 32
+    fn target_answer() -> i64 { return 42 }
+#elseif pointer_bits == 64
+    fn target_answer() -> i64 { return 42 }
+#else
+    #error Unsupported pointer width
+#endif
+program { return target_answer() }

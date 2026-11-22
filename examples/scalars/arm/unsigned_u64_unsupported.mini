@@ -1,0 +1,5 @@
+program {
+    let x: u64 = 40
+    let y: u64 = 2
+    return (x + y) as i64
+}

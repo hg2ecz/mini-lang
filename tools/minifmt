@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""Conservative Mini formatter; Python 3 standard library only.
+
+Formats structural braces, simple operator spacing, and indentation. Input is
+never interpreted as Rust. Strings, comments, preprocessor lines are opaque.
+"""
+from __future__ import annotations
+import argparse
+from pathlib import Path
+import re
+import sys
+
+class FormatError(Exception):
+    pass
+
+# String content and preprocessor directive lines are never modified.
+TOKEN = re.compile(r'==|!=|<=|>=|->|[A-Za-z_][A-Za-z_0-9]*|[0-9]+|\S')
+
+
+def split_source(src: str):
+    """Produce (token, text) entries without losing quoted contents/comments."""
+    entries = []
+    for row_num, raw in enumerate(src.splitlines(), 1):
+        if raw.lstrip().startswith('#'):
+            entries.append(('DIRECTIVE', raw.lstrip()))
+            entries.append(('NEWLINE', ''))
+            continue
+        i = 0
+        while i < len(raw):
+            c = raw[i]
+            if c.isspace():
+                i += 1
+                continue
+            if raw.startswith('//', i):
+                entries.append(('COMMENT', raw[i:]))
+                i = len(raw)
+                break
+            if c == '"' or c == "'":
+                start = i
+                delim = c
+                i += 1
+                while i < len(raw):
+                    if raw[i] == '\\':
+                        i += 2
+                    elif raw[i] == delim:
+                        i += 1
+                        break
+                    else:
+                        i += 1
+                else:
+                    raise FormatError(f'line {row_num}: unclosed quoted literal')
+                entries.append(('TEXT', raw[start:i]))
+                continue
+            m = TOKEN.match(raw, i)
+            if m is None:
+                raise FormatError(f'line {row_num}: unsupported input at column {i + 1}')
+            entries.append(('TOK', m.group()))
+            i = m.end()
+        entries.append(('NEWLINE', 'BLANK' if not raw.strip() else 'NONBLANK'))
+    return entries
+
+
+def needs_space(previous: str, token: str) -> bool:
+    if not previous:
+        return False
+    if token in ('.', ',', ':', ')', '(', ']', '::'):
+        return False
+    if previous in ('(', '.', '[', '::'):
+        return False
+    # Keep negative literals together (e.g. -100, -0x20).
+    if previous == '-' and (token[0].isdigit() or token == '('):
+        return False
+    return True
+
+
+def format_source(source: str) -> str:
+    if not source.strip():
+        return '' if not source else '\n'
+    tokens = split_source(source)
+    lines: list[str] = []
+    current = ''
+    depth = 0
+    parens = 0
+    brackets = 0
+    previous = ''
+    last_line_empty = False
+
+    def flush(blank=False):
+        nonlocal current, previous, last_line_empty
+        if current.strip():
+            lines.append(('    ' * depth) + current.rstrip())
+            last_line_empty = False
+        elif blank and lines and not last_line_empty:
+            lines.append('')
+            last_line_empty = True
+        current = ''
+        previous = ''
+
+    for kind, tok in tokens:
+        if kind == 'DIRECTIVE':
+            if parens or brackets:
+                raise FormatError('preprocessor directive inside parentheses/brackets is unsupported')
+            flush()
+            # Preprocessor directives must be valid at column zero.
+            lines.append(tok)
+            last_line_empty = False
+            continue
+        if kind == 'COMMENT':
+            current = current.rstrip() + ('  ' if current.strip() else '') + tok
+            flush()
+            continue
+        if kind == 'NEWLINE':
+            if parens or brackets:
+                if current and not current.endswith(' '):
+                    current += ' '
+            else:
+                flush(blank=(tok == 'BLANK'))
+            continue
+        if tok == '(':
+            parens += 1
+        elif tok == ')':
+            parens -= 1
+            if parens < 0:
+                raise FormatError('unmatched )')
+        elif tok == '[':
+            brackets += 1
+        elif tok == ']':
+            brackets -= 1
+            if brackets < 0:
+                raise FormatError('unmatched ]')
+        if kind == 'TOK' and tok == '{' and not parens and not brackets:
+            current = current.rstrip() + (' {' if current.strip() else '{')
+            flush()
+            depth += 1
+            continue
+        if kind == 'TOK' and tok == '}' and not parens and not brackets:
+            flush()
+            depth -= 1
+            if depth < 0:
+                raise FormatError('unmatched }')
+            current = '}'
+            flush()
+            continue
+        if kind == 'TOK' and tok == ';' and not parens and not brackets:
+            flush()
+            continue
+        if kind == 'TOK' and tok == ',':
+            current = current.rstrip() + ','
+            previous = ','
+            continue
+        if kind == 'TOK' and tok == ':':
+            current = current.rstrip() + ':'
+            previous = ':'
+            continue
+        if kind == 'TOK' and tok == '.':
+            current = current.rstrip() + '.'
+            previous = '.'
+            continue
+        if kind == 'TOK' and tok == '(':
+            current = current.rstrip() + '('
+            previous = '('
+            continue
+        if kind == 'TOK' and tok == ')':
+            current = current.rstrip() + ')'
+            previous = ')'
+            continue
+        if needs_space(previous, tok):
+            if current and not current.endswith(' '):
+                current += ' '
+        current += tok
+        previous = tok
+    flush()
+    if depth or parens or brackets:
+        raise FormatError('unbalanced delimiters; no file was modified')
+    return '\n'.join(lines).rstrip() + '\n'
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(description='Format Mini .mini source files safely')
+    p.add_argument('--check', action='store_true', help='exit 1 if files need formatting (do not change)')
+    p.add_argument('--stdout', action='store_true', help='print one formatted file to stdout')
+    p.add_argument('--write', '-w', action='store_true', help='rewrite files in-place')
+    p.add_argument('files', nargs='+', type=Path)
+    ns = p.parse_args(argv)
+    if ns.stdout and (ns.write or len(ns.files) != 1):
+        p.error('--stdout accepts exactly one file and cannot be combined with --write')
+    if ns.check and ns.write:
+        p.error('--check and --write are mutually exclusive')
+    result = 0
+    for path in ns.files:
+        try:
+            original = path.read_text(encoding='utf-8')
+            updated = format_source(original)
+            if ns.stdout:
+                sys.stdout.write(updated)
+            elif ns.write:
+                if updated != original:
+                    path.write_text(updated, encoding='utf-8')
+                    print(f'formatted {path}')
+            elif updated != original:
+                print(f'would reformat {path}')
+                result = 1
+        except (OSError, UnicodeError, FormatError) as exc:
+            print(f'minifmt: {path}: {exc}', file=sys.stderr)
+            result = 2
+    return result
+
+if __name__ == '__main__':
+    raise SystemExit(main())

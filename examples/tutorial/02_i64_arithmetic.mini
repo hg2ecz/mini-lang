@@ -1,0 +1,6 @@
+// Mini 4.1.3 teaching example: 02_i64_arithmetic.mini
+program {
+    let a: i64 = 20
+    let b: i64 = 22
+    return a + b
+}

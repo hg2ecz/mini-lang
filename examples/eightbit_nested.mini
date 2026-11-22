@@ -1,0 +1,24 @@
+#if arch == "avr8"
+  #include "../lib/eightbit/avr_atmega328p.mini"
+#elseif arch == "mos6510"
+  #include "../lib/eightbit/c64.mini"
+#else
+  #error requires an 8-bit target
+#endif
+
+fn choose_first(a: usize, b: usize) -> usize { return a }
+program {
+    let one: usize = 1
+    let two: usize = 2
+    let three: usize = 3
+    // Same callee used for nested calls: argument staging is mandatory.
+    let first: usize = choose_first(choose_first(three, two), choose_first(two, one))
+    let success: usize = 0
+    let failure: usize = 1
+    if first == three {
+        unsafe { platform_signal_value(success) }
+    } else {
+        unsafe { platform_signal_value(failure) }
+    }
+    return 0
+}

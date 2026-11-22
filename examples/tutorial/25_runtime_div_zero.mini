@@ -1,0 +1,1 @@
+program { return 1 / 0 }

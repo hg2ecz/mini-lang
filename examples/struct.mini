@@ -1,0 +1,11 @@
+struct Checked {
+    value: i64
+    ok: bool
+}
+fn calculate(a: i64, b: i64, valid: bool) -> Checked {
+    return Checked(a + b, valid)
+}
+program {
+    let result: Checked = calculate(20, 22, true)
+    if result.ok { return result.value } else { return 1 }
+}

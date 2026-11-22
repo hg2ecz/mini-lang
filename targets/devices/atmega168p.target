@@ -1,0 +1,6 @@
+# Same AVR5 ISA; smaller program/data memories.
+device = atmega168p
+flash = 0x0000..0x4000
+ram = 0x0100..0x0500
+stack = 256
+features = jmp,call,mul,lpm

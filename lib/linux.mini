@@ -1,0 +1,279 @@
+// Target library: x86_64-linux. Low-level primitives stay in Mini files.
+// Unsafe: caller must ensure address points to count readable bytes.
+unsafe fn sys_write(fd: i64, address: i64, count: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 1
+            in rdi = fd
+            in rsi = address
+            in rdx = count
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+fn sys_getpid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 39
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: address must be writable for up to count bytes.
+unsafe fn sys_read(fd: i64, address: i64, count: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 0
+            in rdi = fd
+            in rsi = address
+            in rdx = count
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: path must address a valid NUL-terminated byte string.
+unsafe fn sys_openat(dirfd: i64, path: i64, flags: i64, mode: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 257
+            in rdi = dirfd
+            in rsi = path
+            in rdx = flags
+            in r10 = mode
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: caller owns this descriptor and must prevent double close.
+unsafe fn sys_close(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 3
+            in rdi = fd
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: Linux x86-64 mmap flags and validity are caller responsibilities.
+unsafe fn sys_mmap(address: i64, length: i64, prot: i64, flags: i64, fd: i64, offset: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 9
+            in rdi = address
+            in rsi = length
+            in rdx = prot
+            in r10 = flags
+            in r8 = fd
+            in r9 = offset
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: address/length must designate an active mapping owned by caller.
+unsafe fn sys_munmap(address: i64, length: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 11
+            in rdi = address
+            in rsi = length
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// ---- Additional Linux process and descriptor calls (Mini 4.1.3) ----
+// All sys_* functions return the raw Linux result: negative values are -errno.
+
+// No raw pointers are passed.
+fn sys_getppid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 110
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getuid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 102
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_geteuid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 107
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getgid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 104
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getegid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 108
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_gettid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 186
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_sched_yield() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 24
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: the caller manages descriptor ownership and lifetime.
+unsafe fn sys_dup(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 32
+            in rdi = fd
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: the caller manages descriptor ownership and lifetime.
+unsafe fn sys_fsync(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in rax = 74
+            in rdi = fd
+            syscall
+            out result = rax
+            clobber rcx
+            clobber r11
+            clobber memory
+        }
+    }
+    return result
+}

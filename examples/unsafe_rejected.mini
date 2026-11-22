@@ -1,0 +1,5 @@
+#include "../lib/linux.mini"
+program {
+    let letter: i64 = 65
+    return sys_write(1, 0, 1)
+}

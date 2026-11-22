@@ -1,0 +1,35 @@
+// Mini source library, not a compiler primitive.
+// Owns exactly ONE Linux file descriptor. The caller must never adopt a
+// descriptor that belongs to another owner. sys_close errors are ignored.
+// This low-level library is not a full safe File API.
+#if os == "linux"
+    #if arch == "x86_64"
+        #include "../linux.mini"
+    #elseif arch == "aarch64"
+        #include "../linux_aarch64.mini"
+    #elseif arch == "armv7"
+        #include "../linux_armv7.mini"
+    #else
+        #error unsupported Linux arch for OwnedFd
+    #endif
+#else
+    #error linux_fd.mini requires Linux
+#endif
+
+struct OwnedFd { fd: i64 }
+
+// Only the compiler is allowed to call this hook directly. All destructor
+// instructions, including the syscall, are ordinary Mini source code.
+fn __drop_OwnedFd(value: OwnedFd) {
+    unsafe {
+        sys_close(value.fd)
+    }
+}
+
+// Unsafe: fd must designate a live descriptor with unique ownership.
+// Using the constructor directly is also unsafe, because OwnedFd has a drop hook.
+unsafe fn adopt_fd(fd: i64) -> OwnedFd {
+    unsafe {
+        return OwnedFd(fd)
+    }
+}

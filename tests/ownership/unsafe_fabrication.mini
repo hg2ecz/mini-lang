@@ -1,0 +1,6 @@
+struct Guard { code:i64 }
+fn __drop_Guard(g:Guard) {}
+program {
+    let g:Guard=Guard(999)
+    return 42
+}

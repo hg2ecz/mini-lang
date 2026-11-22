@@ -1,0 +1,5 @@
+#include "../lib/linux.mini"
+program {
+    let pid: i64 = sys_getpid()
+    if pid > 0 { return 0 } else { return 1 }
+}

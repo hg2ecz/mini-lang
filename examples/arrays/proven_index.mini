@@ -1,0 +1,6 @@
+// Evaluated at compile time: no runtime array bounds decision chain.
+program {
+    let a: [usize; 4] = [0; 4]
+    a[1 + 2] = 42
+    return a[3] as i64
+}

@@ -1,0 +1,10 @@
+#include "../lib/ownership/linux_fd.mini"
+
+program {
+    // An invalid, nonnegative fd is used for the sample; close returns EBADF.
+    // This demonstrates automatic destruction, not descriptor allocation.
+    unsafe {
+        let handle: OwnedFd = adopt_fd(200000)
+    }
+    return 42
+}

@@ -1,0 +1,14 @@
+// Architecture-dependent Linux wrapper selection. Include from Mini source.
+#if os == "linux"
+    #if arch == "x86_64"
+        #include "linux.mini"
+    #elseif arch == "aarch64"
+        #include "linux_aarch64.mini"
+    #elseif arch == "armv7"
+        #include "linux_armv7.mini"
+    #else
+        #error Unsupported Linux CPU for linux_sys.mini
+    #endif
+#else
+    #error linux_sys.mini requires Linux
+#endif

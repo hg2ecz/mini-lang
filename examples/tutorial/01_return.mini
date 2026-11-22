@@ -1,0 +1,4 @@
+// Mini 4.1.3 teaching example: 01_return.mini
+program {
+    return 42
+}

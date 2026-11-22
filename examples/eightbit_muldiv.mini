@@ -1,0 +1,35 @@
+#if arch == "avr8"
+    #include "../lib/eightbit/avr_atmega328p.mini"
+#elseif arch == "mos6510"
+    #include "../lib/eightbit/c64.mini"
+#else
+    #error requires an 8-bit target
+#endif
+
+fn multiply(a: usize, b: usize) -> usize { return a * b }
+fn divide(a: usize, b: usize) -> usize { return a / b }
+fn zero() -> usize { return 0 }
+
+program {
+    let a: usize = 6
+    let b: usize = 7
+    let product: usize = multiply(a, b)
+    let result: usize = divide(product, b)
+    let nested: usize = multiply(divide(product, a), a)
+    let expected: usize = 42
+    let missing: usize = zero()
+    let zero_value: usize = 0
+#if arch == "avr8"
+    let color: usize = 32
+#else
+    let color: usize = 6
+#endif
+    if result == a {
+        if nested == expected {
+            if missing == zero_value {
+                unsafe { platform_signal_value(color) }
+            }
+        }
+    }
+    return 0
+}

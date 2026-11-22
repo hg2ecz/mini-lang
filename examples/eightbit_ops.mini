@@ -1,0 +1,33 @@
+#if arch == "avr8"
+  #include "../lib/eightbit/avr_atmega328p.mini"
+#elseif arch == "mos6510"
+  #include "../lib/eightbit/c64.mini"
+#else
+  #error only C64 or AVR8
+#endif
+
+program {
+    let hi: usize = 65535
+    let less: usize = 65534
+    let one: usize = 1
+    let zero: usize = 0
+#if arch == "avr8"
+    let yes: usize = 32
+#else
+    let yes: usize = 6
+#endif
+    if hi > less {
+        if less < hi {
+            if hi >= one {
+                if one <= hi {
+                    if hi != zero {
+                        if hi == hi {
+                            unsafe { platform_signal_value(yes) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return 0
+}

@@ -1,0 +1,3 @@
+// Public Mini teaching library. Only answer() is reachable by the demo.
+fn answer() -> i64 { return 20 + 22 }
+fn not_used() -> i64 { return 99 }

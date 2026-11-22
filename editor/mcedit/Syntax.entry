@@ -1,0 +1,3 @@
+# Add this section BEFORE the default catch-all rule in your user's Syntax file:
+file \.mini$ Mini\sSource
+include mini.syntax

@@ -1,0 +1,9 @@
+// Mini 4.1.3 teaching example: 12_struct.mini
+struct Pair {
+    left: i64
+    right: i64
+}
+program {
+    let pair: Pair = Pair(20, 22)
+    return pair.left + pair.right
+}

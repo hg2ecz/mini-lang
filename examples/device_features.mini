@@ -1,0 +1,24 @@
+#if arch == "avr8"
+  #if cpu == "avr5"
+    #if feature == "jmp"
+      #if device == "atmega328p"
+        #include "../lib/eightbit/avr_portb_328_168.mini"
+      #elseif device == "atmega168p"
+        #include "../lib/eightbit/avr_portb_328_168.mini"
+      #else
+        #error no peripheral library for this AVR device
+      #endif
+    #else
+      #error this AVR backend requires JMP
+    #endif
+  #else
+    #error unsupported AVR CPU subset
+  #endif
+#else
+  #error this demo currently requires AVR5
+#endif
+
+program {
+    unsafe { platform_signal() }
+    return 0
+}

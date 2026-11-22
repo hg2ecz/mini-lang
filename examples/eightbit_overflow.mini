@@ -1,0 +1,7 @@
+fn add(a: usize, b: usize) -> usize { return a + b }
+program {
+    let max_value: usize = 65535
+    let one: usize = 1
+    let result: usize = add(max_value, one)
+    return 0
+}

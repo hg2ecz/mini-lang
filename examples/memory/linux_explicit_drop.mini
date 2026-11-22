@@ -1,0 +1,11 @@
+#include "../../lib/memory/linux_buffer.mini"
+
+program {
+    let buffer: Buffer = buffer_new(512)
+    if buffer_valid(buffer) {
+        drop buffer
+        // buffer_capacity(buffer) here would be a compile error.
+        return 42
+    }
+    return 1
+}

@@ -1,0 +1,33 @@
+// C64 6510: VIC-II border ($D020 = 53280), background ($D021 = 53281).
+// The library, not the compiler, owns the peripheral addresses.
+unsafe fn platform_signal() {
+    unsafe {
+        asm {
+            in a = 6             // Commodore color #6 = blue
+            sta(53280)           // VIC-II border
+            clobber memory
+        }
+    }
+}
+// Deliberately unused; the compiler must not emit this function.
+unsafe fn unused_peripheral() {
+    unsafe {
+        asm {
+            in a = 0
+            sta(53281)
+            clobber memory
+        }
+    }
+}
+
+// Dynamic 16-bit Mini argument; compiler traps if it does not fit in 8 bits.
+// The caller must choose a valid VIC-II color (normally 0..15).
+unsafe fn platform_signal_value(value: usize) {
+    unsafe {
+        asm {
+            in a = value
+            sta(53280)
+            clobber memory
+        }
+    }
+}

@@ -1,0 +1,5 @@
+program {
+    let x: usize = 4294967295
+    let y: usize = x + 1
+    return y as i64
+}

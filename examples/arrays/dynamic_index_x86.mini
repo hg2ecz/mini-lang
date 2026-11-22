@@ -1,0 +1,10 @@
+// Mini 4.8: runtime-checked indexing, no new IR opcode.
+program {
+    let values: [usize; 4] = [0; 4]
+    let i: usize = 0
+    while i < 4 {
+        values[i] = i + 39
+        i = i + 1
+    }
+    return values[3] as i64
+}

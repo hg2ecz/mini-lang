@@ -1,0 +1,11 @@
+[package]
+name = "mini-native-core"
+version = "4.8.0"
+edition = "2024"
+
+[[bin]]
+name = "mini"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 2

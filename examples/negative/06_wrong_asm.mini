@@ -1,0 +1,1 @@
+program { unsafe { asm { arbitraryopcode } }; return 0 }

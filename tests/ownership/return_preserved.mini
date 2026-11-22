@@ -1,0 +1,10 @@
+#include "../../lib/linux.mini"
+struct Guard { code: i64 }
+fn __drop_Guard(g:Guard) {
+    sys_getpid()
+}
+fn make() -> Guard { unsafe { return Guard(1) } }
+program {
+    let g:Guard=make()
+    return 42
+}

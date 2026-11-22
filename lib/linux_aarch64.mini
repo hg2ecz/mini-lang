@@ -1,0 +1,248 @@
+// Mini Linux AArch64 syscall functions. No compiler special cases.
+// Linux AArch64: x8 = syscall number, x0-x5 = parameters, x0 = return.
+// svc #0 and its effects are checked by the AArch64 asm verifier.
+
+unsafe fn sys_write(fd: i64, address: i64, count: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 64
+            in x0 = fd
+            in x1 = address
+            in x2 = count
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+unsafe fn sys_read(fd: i64, address: i64, count: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 63
+            in x0 = fd
+            in x1 = address
+            in x2 = count
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+fn sys_getpid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 172
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: path is a readable, NUL-terminated C-string in valid memory.
+unsafe fn sys_openat(dirfd: i64, path: i64, flags: i64, mode: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 56
+            in x0 = dirfd
+            in x1 = path
+            in x2 = flags
+            in x3 = mode
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: descriptor ownership must be enforced by the caller.
+unsafe fn sys_close(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 57
+            in x0 = fd
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: Linux mmap parameters are unchecked raw values in this interface.
+unsafe fn sys_mmap(address: i64, length: i64, prot: i64, flags: i64, fd: i64, offset: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 222
+            in x0 = address
+            in x1 = length
+            in x2 = prot
+            in x3 = flags
+            in x4 = fd
+            in x5 = offset
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: address/length must belong to a valid mapping.
+unsafe fn sys_munmap(address: i64, length: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 215
+            in x0 = address
+            in x1 = length
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// ---- Additional Linux process and descriptor calls (Mini 4.1.3) ----
+// All sys_* functions return the raw Linux result: negative values are -errno.
+
+// No raw pointers are passed.
+fn sys_getppid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 173
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getuid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 174
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_geteuid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 175
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getgid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 176
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getegid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 177
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_gettid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 178
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_sched_yield() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 124
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: the caller manages descriptor ownership and lifetime.
+unsafe fn sys_dup(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 23
+            in x0 = fd
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: the caller manages descriptor ownership and lifetime.
+unsafe fn sys_fsync(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in x8 = 82
+            in x0 = fd
+            svc
+            out result = x0
+            clobber memory
+        }
+    }
+    return result
+}

@@ -1,0 +1,15 @@
+// Mini 4.1.3 teaching example: 18_linux_ids.mini
+#include "../../lib/linux_sys.mini"
+program {
+    let uid: i64 = sys_getuid()
+    let euid: i64 = sys_geteuid()
+    let gid: i64 = sys_getgid()
+    let egid: i64 = sys_getegid()
+    if uid >= 0 {
+        if euid >= 0 {
+            if gid >= 0 {
+                if egid >= 0 { return 42 } else { return 1 }
+            } else { return 2 }
+        } else { return 3 }
+    } else { return 4 }
+}

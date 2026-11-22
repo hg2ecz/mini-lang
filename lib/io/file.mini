@@ -1,0 +1,71 @@
+// Mini Linux file-owner library (x86_64, aarch64, armv7 Linux).
+// This is a minimal *unsafe* I/O abstraction, not a fully safe File API.
+// Pointer validity and unique descriptor ownership cannot currently be
+// proved by the Mini 4.5 checker.
+//
+// Usage:
+//   unsafe {
+//       let fd: i64 = file_open_readonly(path_address)
+//       if fd < 0 { return 1 }
+//       let file: File = file_adopt(fd)
+//       let n: i64 = file_read(file, buffer_address, 1)
+//       // Automatically closes on return, or: drop file
+//       return 0
+//   }
+//
+// Do not also #include linux_sys.mini from the same translation unit:
+// this file already imports the architecture-specific syscall library.
+#include "../linux_sys.mini"
+
+struct File {
+    fd: i64
+}
+
+// Compiler-generated cleanup calls this like any normal Mini function.
+// The result of close() is intentionally ignored. In particular, a failed
+// close() must not be retried blindly: the descriptor may have been reused.
+fn __drop_File(file: File) {
+    unsafe {
+        sys_close(file.fd)
+    }
+}
+
+// O_RDONLY = 0, AT_FDCWD = -100 on the Linux targets above.
+// Unsafe: path_address must point to a NUL-terminated string that remains
+// valid throughout the system call. Returns a raw fd or negative errno.
+unsafe fn file_open_readonly(path_address: i64) -> i64 {
+    unsafe {
+        return sys_openat(-100, path_address, 0, 0)
+    }
+}
+
+// General openat wrapper. The caller is responsible for flags/mode and path.
+// Returns a *raw* fd or a negative errno; no owner exists until file_adopt.
+unsafe fn file_openat(dirfd: i64, path_address: i64, flags: i64, mode: i64) -> i64 {
+    unsafe {
+        return sys_openat(dirfd, path_address, flags, mode)
+    }
+}
+
+// Unsafe: fd must be >= 0, open, uniquely owned and not otherwise closed.
+// Call only after checking an open result. Adopt exactly once.
+unsafe fn file_adopt(fd: i64) -> File {
+    unsafe {
+        return File(fd)
+    }
+}
+
+// Borrowed File argument: the Mini ABI does not transfer ownership here.
+// Unsafe: address must be writable for 'count' bytes; count >= 0.
+unsafe fn file_read(file: File, address: i64, count: i64) -> i64 {
+    unsafe {
+        return sys_read(file.fd, address, count)
+    }
+}
+
+// Unsafe: address must be readable for 'count' bytes; count >= 0.
+unsafe fn file_write(file: File, address: i64, count: i64) -> i64 {
+    unsafe {
+        return sys_write(file.fd, address, count)
+    }
+}

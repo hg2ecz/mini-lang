@@ -1,0 +1,12 @@
+#if arch == "avr8"
+  #include "../lib/eightbit/avr_atmega328p.mini"
+#elseif arch == "mos6510"
+  #include "../lib/eightbit/c64.mini"
+#else
+  #error this example requires AVR8 or Commodore 64
+#endif
+
+program {
+    unsafe { platform_signal() }
+    return 0
+}

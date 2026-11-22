@@ -1,0 +1,11 @@
+fn increment(n: usize) -> usize {
+    let one: usize = 1
+    return n + one
+}
+
+program {
+    let a: usize = 9223372036854775807
+    let b: usize = a * a
+    let c: usize = b + b
+    return 0
+}

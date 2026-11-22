@@ -1,0 +1,5 @@
+program {
+    let x: u8 = 255
+    x = x + 1
+    return 0
+}

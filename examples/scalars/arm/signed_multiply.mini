@@ -1,0 +1,7 @@
+fn calculate(a: i16, b: i16) -> i16 {
+    return a * b
+}
+program {
+    let result: i16 = calculate(-7, -6)
+    return result as i64
+}

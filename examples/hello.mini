@@ -1,0 +1,9 @@
+#include "../lib/linux.mini"
+program {
+    let letter: i64 = 65
+    unsafe {
+        let written: i64 = sys_write(1, raw_addr(letter), 1)
+        if written != 1 { return 1 }
+    }
+    return 0
+}

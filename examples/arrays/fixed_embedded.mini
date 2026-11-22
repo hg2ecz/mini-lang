@@ -1,0 +1,11 @@
+// Bare-metal / C64: the program entry point must return literal zero.
+fn compute() -> usize {
+    let samples: [usize; 4] = [0; 4]
+    samples[0] = 6
+    samples[1] = 7
+    return samples[0] * samples[1]
+}
+program {
+    let result: usize = compute()
+    return 0
+}

@@ -1,0 +1,6 @@
+# Cortex-M Thumb-2 subset: validated memory map; unsupported Mini operations fail closed.
+device = stm32f103c8
+flash = 0x08000000..0x08010000
+ram = 0x20000000..0x20005000
+stack = 2048
+features = thumb2,udiv

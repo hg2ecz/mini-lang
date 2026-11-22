@@ -1,0 +1,6 @@
+struct Guard { code:i64 }
+fn __drop_Guard(g:Guard) {}
+program {
+  if true { unsafe { let g:Guard=Guard(1) } } else {}
+  return 42
+}

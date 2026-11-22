@@ -1,0 +1,9 @@
+// Mini 4.1.3 teaching example: 21_linux_write.mini
+#include "../../lib/linux_sys.mini"
+program {
+    let letter: i64 = 65
+    unsafe {
+        sys_write(1, raw_addr(letter), 1)
+    }
+    return 42
+}

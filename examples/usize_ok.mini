@@ -1,0 +1,15 @@
+fn add(a: usize, b: usize) -> usize {
+    return a + b
+}
+
+program {
+    let twenty: usize = 20
+    let twentytwo: usize = 22
+    let result: usize = add(twenty, twentytwo)
+    let expected: usize = 42
+    if result == expected {
+        return 42
+    } else {
+        return 1
+    }
+}

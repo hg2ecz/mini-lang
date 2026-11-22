@@ -1,0 +1,6 @@
+// Expected type error: a runtime index must have usize type.
+program {
+    let bytes: [usize; 3] = [0; 3]
+    let index: i64 = 2
+    return bytes[index] as i64
+}

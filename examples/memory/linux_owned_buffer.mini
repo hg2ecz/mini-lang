@@ -1,0 +1,17 @@
+#include "../../lib/memory/linux_buffer.mini"
+
+program {
+    let buffer: Buffer = buffer_new(4096)
+    let n: i64 = -1
+    if buffer_valid(buffer) {
+        unsafe {
+            n = buffer_read_fd(buffer, 0, 0, 16)
+            if n > 0 {
+                buffer_write_fd(buffer, 1, 0, n)
+            }
+        }
+        // __drop_Buffer is generated before return.
+        return 0
+    }
+    return 1
+}

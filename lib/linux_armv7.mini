@@ -1,0 +1,178 @@
+// Linux ARMv7 EABI: r7 = syscall number, r0-r6 = arguments, svc #0.
+// Syscall result is a signed 32-bit integer, sign-extended to Mini i64.
+// Raw addresses and integer arguments are truncated to the target's 32 bits.
+// These low-level functions do NOT establish pointer/resource safety.
+
+unsafe fn sys_write(fd:i64, address:i64, count:i64)->i64 {
+    let result:i64=-1
+    unsafe { asm { in r7=4; in r0=fd; in r1=address; in r2=count; svc; out result=r0; clobber memory } }
+    return result
+}
+
+unsafe fn sys_read(fd:i64, address:i64, count:i64)->i64 {
+    let result:i64=-1
+    unsafe { asm { in r7=3; in r0=fd; in r1=address; in r2=count; svc; out result=r0; clobber memory } }
+    return result
+}
+
+fn sys_getpid()->i64 {
+    let result:i64=-1
+    unsafe { asm { in r7=20; svc; out result=r0; clobber memory } }
+    return result
+}
+
+unsafe fn sys_openat(dirfd:i64, path:i64, flags:i64, mode:i64)->i64 {
+    let result:i64=-1
+    unsafe { asm { in r7=322; in r0=dirfd; in r1=path; in r2=flags; in r3=mode; svc; out result=r0; clobber memory } }
+    return result
+}
+
+unsafe fn sys_close(fd:i64)->i64 {
+    let result:i64=-1
+    unsafe { asm { in r7=6; in r0=fd; svc; out result=r0; clobber memory } }
+    return result
+}
+
+// mmap2 uses a PAGE offset, not a byte offset. Caller validates page size.
+unsafe fn sys_mmap2(address:i64, length:i64, prot:i64, flags:i64, fd:i64, page_offset:i64)->i64 {
+    let result:i64=-1
+    unsafe { asm { in r7=192; in r0=address; in r1=length; in r2=prot; in r3=flags; in r4=fd; in r5=page_offset; svc; out result=r0; clobber memory } }
+    return result
+}
+
+unsafe fn sys_munmap(address:i64, length:i64)->i64 {
+    let result:i64=-1
+    unsafe { asm { in r7=91; in r0=address; in r1=length; svc; out result=r0; clobber memory } }
+    return result
+}
+
+// ---- Additional Linux process and descriptor calls (Mini 4.1.3) ----
+// All sys_* functions return the raw Linux result: negative values are -errno.
+
+// No raw pointers are passed.
+fn sys_getppid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 64
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getuid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 199
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_geteuid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 201
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getgid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 200
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_getegid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 202
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_gettid() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 224
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// No raw pointers are passed.
+fn sys_sched_yield() -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 158
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: the caller manages descriptor ownership and lifetime.
+unsafe fn sys_dup(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 41
+            in r0 = fd
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}
+
+// Unsafe: the caller manages descriptor ownership and lifetime.
+unsafe fn sys_fsync(fd: i64) -> i64 {
+    let result: i64 = -1
+    unsafe {
+        asm {
+            in r7 = 118
+            in r0 = fd
+            svc
+            out result = r0
+            clobber memory
+        }
+    }
+    return result
+}

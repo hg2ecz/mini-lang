@@ -1,0 +1,30 @@
+// Shared AVR PORTB on ATmega328P / ATmega168P. AVR I/O addresses are not SRAM addresses.
+// DDRB = 4, PORTB = 5. No delay is provided; external hardware is user-managed.
+// All direct I/O is unsafe; callers must opt into it.
+unsafe fn platform_signal() {
+    unsafe {
+        asm {
+            in r16 = 32
+            outio(4, r16)   // DDRB bit5 output
+            outio(5, r16)   // PORTB bit5 high
+            clobber memory
+        }
+    }
+}
+// Deliberately unused; must be omitted by IR reachability pruning.
+unsafe fn unused_peripheral() {
+    unsafe { asm { nop } }
+}
+
+// Full PORTB/DDRB writes are intentionally unsafe. No implicit pin policy.
+// A 16-bit input >255 triggers the backend's overflow trap before I/O.
+unsafe fn platform_signal_value(value: usize) {
+    unsafe {
+        asm {
+            in r16 = value
+            outio(4, r16)
+            outio(5, r16)
+            clobber memory
+        }
+    }
+}

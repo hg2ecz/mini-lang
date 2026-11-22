@@ -1,0 +1,4 @@
+// Mini 4.1.3 teaching example: 15_dead_code.mini
+fn used() -> i64 { return 42 }
+fn never_called() -> i64 { return 99 }
+program { return used() }

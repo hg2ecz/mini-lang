@@ -1,0 +1,5 @@
+// Mini 4.1.3 teaching example: 07_while_false.mini
+program {
+    while false { return 99 }
+    return 42
+}

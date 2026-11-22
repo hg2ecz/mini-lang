@@ -1,0 +1,5 @@
+// Mini 4.1.3 teaching example: 14_include_math.mini
+#include "support/arithmetic.mini"
+program {
+    return answer()
+}

@@ -1,0 +1,5 @@
+#include "../../lib/io/file.mini"
+program {
+    let file: File = file_adopt(3)
+    return 0
+}

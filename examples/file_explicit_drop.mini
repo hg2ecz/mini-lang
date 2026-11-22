@@ -1,0 +1,22 @@
+// Create a file named "a" with one byte, e.g. printf 'Z' > a.
+#include "../lib/io/file.mini"
+
+program {
+    let path: i64 = 97
+    let buffer: i64 = 0
+    unsafe {
+        let fd: i64 = file_open_readonly(raw_addr(path))
+        if fd < 0 {
+            return 1
+        }
+        let file: File = file_adopt(fd)
+        let count: i64 = file_read(file, raw_addr(buffer), 1)
+        // Immediately invokes __drop_File and sys_close.
+        drop file
+        if count != 1 {
+            return 2
+        }
+        sys_write(1, raw_addr(buffer), 1)
+        return 0
+    }
+}

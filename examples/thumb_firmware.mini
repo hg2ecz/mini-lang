@@ -1,0 +1,19 @@
+#if arch == "thumbv7m"
+    #include "../lib/arm/mmio.mini"
+#else
+    #error Cortex-M Thumb required
+#endif
+
+fn sum(a: usize, b: usize) -> usize {
+    return a + b
+}
+
+program {
+    let answer: usize = sum(20, 22)
+    if answer == 42 {
+        unsafe { asm { nop } }
+    } else {
+        unsafe { asm { yield } }
+    }
+    return 0
+}

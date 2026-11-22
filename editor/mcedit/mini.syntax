@@ -1,0 +1,56 @@
+# Midnight Commander Mini syntax. Install with a Syntax include rule.
+context default lightgray
+    keyword whole fn brightcyan
+    keyword whole let brightcyan
+    keyword whole struct brightcyan
+    keyword whole return brightcyan
+    keyword whole if brightcyan
+    keyword whole else brightcyan
+    keyword whole while brightcyan
+    keyword whole program brightcyan
+    keyword whole unsafe brightred
+    keyword whole asm brightred
+    keyword whole drop brightred
+    keyword whole as yellow
+    keyword whole pub brightcyan
+    keyword whole bool brightgreen
+    keyword whole usize brightgreen
+    keyword whole i8 brightgreen
+    keyword whole i16 brightgreen
+    keyword whole i32 brightgreen
+    keyword whole i64 brightgreen
+    keyword whole u8 brightgreen
+    keyword whole u16 brightgreen
+    keyword whole u32 brightgreen
+    keyword whole u64 brightgreen
+    keyword whole f32 brightgreen
+    keyword whole f64 brightgreen
+    keyword whole true brightmagenta
+    keyword whole false brightmagenta
+    keyword whole in yellow
+    keyword whole out yellow
+    keyword whole clobber brightred
+    keyword whole syscall brightred
+    keyword whole svc brightred
+    keyword whole nop brightred
+    keyword whole ldr brightred
+    keyword whole str brightred
+    keyword whole pause brightred
+    keyword whole dmb brightred
+    keyword whole isb brightred
+    keyword whole yield brightred
+    keyword { brightcyan
+    keyword } brightcyan
+    keyword ( cyan
+    keyword ) cyan
+    keyword -> brightcyan
+    keyword = yellow
+    keyword + yellow
+    keyword - yellow
+    keyword \* yellow
+    keyword / yellow
+context linestart # \n brightmagenta
+context // \n brown
+context " " green
+    keyword \\" brightgreen
+    keyword \\\\ brightgreen

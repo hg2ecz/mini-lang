@@ -1,0 +1,106 @@
+// Experimental Linux owned mapping, Mini 4.6. For x86_64/AArch64 Linux.
+// The kernel primitives are in the included .mini library, not compiler IR.
+#if os == "linux"
+    #if arch == "x86_64"
+        #include "../linux_sys.mini"
+    #elseif arch == "aarch64"
+        #include "../linux_sys.mini"
+    #else
+        #error Linux Buffer is not yet validated on this architecture
+    #endif
+#else
+    #error Linux Buffer requires a Linux target; MCU targets have no heap
+#endif
+
+struct Buffer {
+    address: i64
+    capacity: i64
+    valid: bool
+}
+
+// Returns an invalid (0,0,false) owner on failure; check buffer_valid().
+// Read/write mmap; private anonymous mapping. Deliberate 1 GiB limit.
+fn buffer_new(capacity: i64) -> Buffer {
+    if capacity <= 0 {
+        unsafe {
+            return Buffer(0, 0, false)
+        }
+    }
+    if capacity > 1073741824 {
+        unsafe {
+            return Buffer(0, 0, false)
+        }
+    }
+    let address: i64 = 0
+    unsafe {
+        address = sys_mmap(0, capacity, 3, 34, -1, 0)
+        if address < 0 {
+            return Buffer(0, 0, false)
+        }
+        return Buffer(address, capacity, true)
+    }
+}
+
+fn buffer_valid(buffer: Buffer) -> bool {
+    return buffer.valid
+}
+
+fn buffer_capacity(buffer: Buffer) -> i64 {
+    return buffer.capacity
+}
+
+// Offset and count are checked before they are ever added to a pointer.
+fn buffer_fits(buffer: Buffer, offset: i64, count: i64) -> bool {
+    if buffer.valid == false {
+        return false
+    }
+    if offset < 0 {
+        return false
+    }
+    if count < 0 {
+        return false
+    }
+    if offset > buffer.capacity {
+        return false
+    }
+    return count <= buffer.capacity - offset
+}
+
+fn __drop_Buffer(buffer: Buffer) {
+    if buffer.valid {
+        unsafe {
+            sys_munmap(buffer.address, buffer.capacity)
+        }
+    }
+}
+
+// These functions are unsafe because fd is a raw external descriptor.
+// A failed bounds check produces -EINVAL instead of making a syscall.
+unsafe fn buffer_read_fd(buffer: Buffer, fd: i64, offset: i64, count: i64) -> i64 {
+    if buffer_fits(buffer, offset, count) {
+        if count == 0 {
+            return 0
+        }
+        unsafe {
+            return sys_read(fd, buffer.address + offset, count)
+        }
+    }
+    return -22
+}
+
+unsafe fn buffer_write_fd(buffer: Buffer, fd: i64, offset: i64, count: i64) -> i64 {
+    if buffer_fits(buffer, offset, count) {
+        if count == 0 {
+            return 0
+        }
+        unsafe {
+            return sys_write(fd, buffer.address + offset, count)
+        }
+    }
+    return -22
+}
+
+// Escape hatch; pointer validity after drop is the caller's responsibility.
+unsafe fn buffer_raw_address(buffer: Buffer) -> i64 {
+    return buffer.address
+}

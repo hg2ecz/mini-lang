@@ -1,0 +1,5 @@
+// Mini 4.1.3 teaching example: 04_negative.mini
+program {
+    let value: i64 = -42
+    return -value
+}

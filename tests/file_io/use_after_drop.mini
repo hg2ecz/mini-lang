@@ -1,0 +1,10 @@
+#include "../../lib/io/file.mini"
+program {
+    let buffer: i64 = 0
+    unsafe {
+        let file: File = file_adopt(3)
+        drop file
+        file_read(file, raw_addr(buffer), 1)
+    }
+    return 0
+}

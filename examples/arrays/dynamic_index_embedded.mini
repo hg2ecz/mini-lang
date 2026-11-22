@@ -1,0 +1,11 @@
+// Bare-metal/C64 entry must return zero. Runtime index operations use usize.
+program {
+    let values: [usize; 4] = [0; 4]
+    let i: usize = 0
+    while i < 4 {
+        values[i] = i + 39
+        i = i + 1
+    }
+    let value: usize = values[3]
+    return 0
+}

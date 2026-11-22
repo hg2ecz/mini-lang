@@ -1,0 +1,4 @@
+program {
+    let a: i8 = -4
+    if a < 0 { return 42 } else { return 1 }
+}

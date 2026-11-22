@@ -1,0 +1,9 @@
+// Mini 4.1.3 teaching example: 23_linux_fsync_invalid.mini
+#include "../../lib/linux_sys.mini"
+fn invalid_fsync() -> i64 {
+    unsafe { return sys_fsync(-1) }
+}
+program {
+    let result: i64 = invalid_fsync()
+    if result < 0 { return 42 } else { return 1 }
+}

@@ -1,0 +1,9 @@
+struct Guard { code:i64 }
+fn __drop_Guard(g:Guard) {}
+fn make()->Guard {unsafe{return Guard(1)}}
+program {
+    let g:Guard=make()
+    drop g
+    drop g
+    return 42
+}

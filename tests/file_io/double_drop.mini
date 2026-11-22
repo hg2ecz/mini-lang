@@ -1,0 +1,9 @@
+#include "../../lib/io/file.mini"
+program {
+    unsafe {
+        let file: File = file_adopt(3)
+        drop file
+        drop file
+    }
+    return 0
+}

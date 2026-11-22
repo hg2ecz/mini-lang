@@ -1,0 +1,2 @@
+#include "../../lib/linux_sys.mini"
+program { return sys_dup(1) }

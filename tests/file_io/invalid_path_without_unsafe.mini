@@ -1,0 +1,6 @@
+#include "../../lib/io/file.mini"
+program {
+    let path: i64 = 97
+    let fd: i64 = file_open_readonly(raw_addr(path))
+    return fd
+}

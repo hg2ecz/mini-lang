@@ -1,0 +1,2 @@
+// Backward compatibility: identical PORTB register addresses on ATmega328P and ATmega168P.
+#include "avr_portb_328_168.mini"

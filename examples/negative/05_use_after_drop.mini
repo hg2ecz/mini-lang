@@ -1,0 +1,2 @@
+struct R { value: i64 }
+program { let r: R = R(42); drop r; return r.value }

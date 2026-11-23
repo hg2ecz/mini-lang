@@ -55,7 +55,9 @@ impl Encoder {
         let j1 = (!(i1 ^ s)) & 1;
         let j2 = (!(i2 ^ s)) & 1;
         let first = 0xF000 | ((s as u16) << 10) | (((imm >> 12) & 0x3ff) as u16);
-        let second = 0xF800 | ((j1 as u16) << 13) | ((j2 as u16) << 11) | ((imm & 0x7ff) as u16);
+        // imm11 holds halfword offset bits [11:1]; bit 0 of the byte offset is implicit.
+        let second =
+            0xF800 | ((j1 as u16) << 13) | ((j2 as u16) << 11) | (((imm >> 1) & 0x7ff) as u16);
         self.data[at..at + 2].copy_from_slice(&first.to_le_bytes());
         self.data[at + 2..at + 4].copy_from_slice(&second.to_le_bytes());
         Ok(())
@@ -162,7 +164,12 @@ impl Encoder {
     pub fn trap(&mut self) {
         self.h(0xBE00);
         self.h(0xE7FE);
-    } // BKPT + fail-closed infinite loop
+    } // BKPT #0 + fail-closed infinite loop: Mini runtime trap
+    /// Normal end of firmware (`program` returned): BKPT #1 + loop, distinct from a trap.
+    pub fn halt(&mut self) {
+        self.h(0xBE01);
+        self.h(0xE7FE);
+    }
     pub fn finish(mut self) -> Res<Vec<u8>> {
         let calls = std::mem::take(&mut self.calls);
         for (at, name) in calls {
@@ -206,5 +213,34 @@ mod tests {
         e.h(0x4770);
         let b = e.finish().unwrap();
         assert_eq!(&b[..4], &[0, 0xf0, 1, 0xf8]);
+    }
+    /// Reference encodings produced by `llvm-mc -triple=thumbv7m-none-eabi` (LLVM 23).
+    /// The delta is the byte distance from (BL address + 4) to the target.
+    #[test]
+    fn thumb_bl_matches_llvm_reference() {
+        let cases: [(i64, u16, u16); 9] = [
+            (2, 0xf000, 0xf801),
+            (6, 0xf000, 0xf803),
+            (2048, 0xf000, 0xfc00),
+            (4094, 0xf000, 0xffff),
+            (4096, 0xf001, 0xf800),
+            (1_048_576, 0xf100, 0xf800),
+            (-8, 0xf7ff, 0xfffc),
+            (-2054, 0xf7ff, 0xfbfd),
+            (-1_048_580, 0xf6ff, 0xfffe),
+        ];
+        for (delta, first, second) in cases {
+            let size = 2_200_000usize;
+            let at: usize = if delta < 0 { 1_100_000 } else { 0 };
+            let target = (at as i64 + 4 + delta) as usize;
+            let mut e = Encoder::new();
+            e.data = vec![0; size];
+            e.patch_bl(at, target).unwrap();
+            let got = [
+                u16::from_le_bytes([e.data[at], e.data[at + 1]]),
+                u16::from_le_bytes([e.data[at + 2], e.data[at + 3]]),
+            ];
+            assert_eq!(got, [first, second], "delta {delta}");
+        }
     }
 }

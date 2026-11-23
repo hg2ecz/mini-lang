@@ -129,6 +129,7 @@ impl<'a> Gen<'a> {
     fn stmts(&mut self, body: &[Stmt], fr: &Frame, ret: &Ty) -> Res<()> {
         for st in body {
             match st {
+                Stmt::Trap => self.trap(),
                 Stmt::Unsafe(body) => self.stmts(body, fr, ret)?,
                 Stmt::Asm(a) => {
                     // Stage all expression evaluations first, then restore to

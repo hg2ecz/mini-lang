@@ -14,7 +14,7 @@ echo $?  # expected: 42
 bash tests/tutorial413.sh
 ```
 
-Files `01`–`16` introduce Mini's scalar language, basic control flow, functions, structures and includes. Files `17`–`24` use Linux-specific syscalls. File `25` deliberately divides by zero and expects a runtime trap (exit 101). Files in `examples/negative/` are expected to fail at compile time. AVR/C64 and Cortex-M backends only implement subsets; the full tutorial targets mature Linux backends, with ARM execution still requiring verification.
+Files `01`–`16` introduce Mini's scalar language, basic control flow, functions, structures and includes. Files `17`–`24` use Linux-specific syscalls. File `25` deliberately divides by zero and expects a runtime trap (SIGILL, shell status 132). Files in `examples/negative/` are expected to fail at compile time. AVR/C64 and Cortex-M backends only implement subsets; the full tutorial targets mature Linux backends, with ARM execution still requiring verification.
 
 ## Linux syscall libraries
 

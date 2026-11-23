@@ -33,7 +33,7 @@
 
 ## Historical materials / Korábbi verziók
 
-`NUMERIC_TYPES_HU.md`, `NUMERIC_TYPES_EN.md`, `SCALARS_4_3_HU.md`, `SCALARS_4_3_EN.md`, and `RELEASE_NOTES_4_1_2.md` preserve historical context and should **not** override the 4.4 references. See also `../PROJECT_HISTORY.md`.
+`NUMERIC_TYPES_HU.md`, `NUMERIC_TYPES_EN.md`, `SCALARS_4_3_HU.md`, `SCALARS_4_3_EN.md`, and `history/RELEASE_NOTES_4_1_2.md` preserve historical context and should **not** override the 4.4 references. See also `../PROJECT_HISTORY.md`.
 
 **Compatibility warning:** FPU features in `.target` files do not imply `f32`/`f64` support; new integer widths/`as` are available only on the documented Linux backend subsets. AVR8/C64 and Cortex-M retain their earlier subsets. Linux syscalls, GPIO, and drivers remain `#include` libraries.
 
@@ -42,3 +42,7 @@
 
 - [Mini 4.8 — checked array indexing (HU)](ARRAYS_4_8_HU.md)
 - [Mini 4.8 — checked array indexing (EN)](ARRAYS_4_8_EN.md)
+
+## Hibakódok / Error codes
+
+[HIBAKODOK.md](HIBAKODOK.md) – a fordító által generált hibakatalógus (`mini --print-errors`, `mini --explain E0xxx`).

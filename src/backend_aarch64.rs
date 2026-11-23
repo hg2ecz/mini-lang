@@ -41,7 +41,7 @@ impl<'a> Gen<'a> {
         self.enc.patch(at, to, 19)
     }
     fn trap(&mut self) {
-        self.enc.linux_exit(101);
+        self.enc.udf();
     }
     fn trap_unless(&mut self, c: Cond) -> Res<()> {
         let next = self.enc.b_cond(c);
@@ -110,6 +110,7 @@ impl<'a> Gen<'a> {
     fn stmts(&mut self, body: &[Stmt], fr: &Frame, ret: &Ty) -> Res<()> {
         for st in body {
             match st {
+                Stmt::Trap => self.trap(),
                 Stmt::Unsafe(body) => self.stmts(body, fr, ret)?,
                 Stmt::Asm(a) => {
                     for (_, expr) in &a.inputs {

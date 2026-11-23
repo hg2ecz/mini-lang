@@ -1,6 +1,6 @@
 # Mini 4.4 – Integer types on ARM Linux
 
-Mini recognizes `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `usize`, and `bool`. Integer `as` casts are **checked**: out-of-range conversions trap with exit code 101. Narrow arithmetic must not silently truncate.
+Mini recognizes `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `usize`, and `bool`. Integer `as` casts are **checked**: out-of-range conversions trap (SIGILL on Linux, shell status 132 since 4.9). Narrow arithmetic must not silently truncate.
 
 ```mini
 fn increment(x: u8) -> u8 {

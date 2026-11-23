@@ -6,6 +6,7 @@ mod backend_thumb;
 mod backend_x86;
 mod code_buffer;
 mod device_config;
+mod diagnostics;
 mod encode_aarch64;
 mod encode_arm32;
 mod encode_thumb;
@@ -26,13 +27,30 @@ enum T {
     End,
 }
 fn lex(s: &str) -> Res<Vec<T>> {
+    Ok(lex_pos(s)?.0)
+}
+/// 1-based (line, column) of a byte offset.
+fn line_col(s: &str, offset: usize) -> (u32, u32) {
+    let before = &s.as_bytes()[..offset.min(s.len())];
+    let line = before.iter().filter(|&&c| c == b'\n').count() as u32 + 1;
+    let col = (before.len()
+        - before
+            .iter()
+            .rposition(|&c| c == b'\n')
+            .map_or(0, |p| p + 1)) as u32
+        + 1;
+    (line, col)
+}
+/// Tokens plus the (line, column) where each token starts.
+fn lex_pos(s: &str) -> Res<(Vec<T>, Vec<(u32, u32)>)> {
     let b = s.as_bytes();
     let mut i = 0;
-    let mut out = Vec::new();
+    let mut out: Vec<(T, usize)> = Vec::new();
     let mut nesting = 0;
     let mut brackets = 0;
     while i < b.len() {
         let c = b[i];
+        let tok = i;
         if c == b' ' || c == b'\t' || c == b'\r' {
             i += 1;
             continue;
@@ -45,7 +63,7 @@ fn lex(s: &str) -> Res<Vec<T>> {
         }
         if c == b'\n' || c == b';' {
             if nesting == 0 || c == b';' {
-                out.push(T::Sym(";".into()));
+                out.push((T::Sym(";".into()), tok));
             }
             i += 1;
             continue;
@@ -56,7 +74,7 @@ fn lex(s: &str) -> Res<Vec<T>> {
             while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
                 i += 1;
             }
-            out.push(T::Id(s[start..i].into()));
+            out.push((T::Id(s[start..i].into()), tok));
             continue;
         }
         if c.is_ascii_digit() {
@@ -68,7 +86,7 @@ fn lex(s: &str) -> Res<Vec<T>> {
             let n = s[start..i]
                 .parse()
                 .map_err(|_| "integer literal out of range".to_string())?;
-            out.push(T::Num(n));
+            out.push((T::Num(n), tok));
             continue;
         }
         if c == b'[' {
@@ -90,21 +108,28 @@ fn lex(s: &str) -> Res<Vec<T>> {
             nesting -= 1;
         }
         if c == b'-' && b.get(i + 1) == Some(&b'>') {
-            out.push(T::Sym("->".into()));
+            out.push((T::Sym("->".into()), tok));
             i += 2;
             continue;
         }
         if matches!(c, b'=' | b'!' | b'<' | b'>') && b.get(i + 1) == Some(&b'=') {
-            out.push(T::Sym(format!("{}=", c as char)));
+            out.push((T::Sym(format!("{}=", c as char)), tok));
             i += 2;
             continue;
         }
         if b"{}[]():,+-*/.=<>".contains(&c) {
-            out.push(T::Sym((c as char).to_string()));
+            out.push((T::Sym((c as char).to_string()), tok));
             i += 1;
             continue;
         }
-        return Err(format!("invalid character at byte {i}: 0x{c:02x}"));
+        {
+            let (l, col) = line_col(s, i);
+            return Err(diagnostics::at(
+                l,
+                col,
+                &format!("invalid character 0x{c:02x}"),
+            ));
+        }
     }
     if nesting != 0 {
         return Err("unclosed parentheses".into());
@@ -112,8 +137,9 @@ fn lex(s: &str) -> Res<Vec<T>> {
     if brackets != 0 {
         return Err("unclosed array bracket".into());
     }
-    out.push(T::End);
-    Ok(out)
+    out.push((T::End, b.len()));
+    let pos = out.iter().map(|(_, o)| line_col(s, *o)).collect();
+    Ok((out.into_iter().map(|(t, _)| t).collect(), pos))
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Ty {
@@ -147,6 +173,9 @@ enum St {
     While(Ex, Vec<St>),
     Unsafe(Vec<St>),
     Asm(AsmBlock),
+    Trap,
+    /// Position marker: the following statement starts on this merged-source line.
+    At(u32),
 }
 #[derive(Clone, Debug)]
 struct AsmBlock {
@@ -162,6 +191,7 @@ struct Fun {
     args: Vec<(String, Ty)>,
     ret: Ty,
     body: Vec<St>,
+    line: u32,
 }
 #[derive(Debug)]
 struct Ast {
@@ -170,6 +200,7 @@ struct Ast {
 }
 struct P {
     t: Vec<T>,
+    pos: Vec<(u32, u32)>,
     i: usize,
     arrays: HashMap<String, (Ty, usize)>,
     pending: Vec<St>,
@@ -178,8 +209,12 @@ struct P {
 }
 impl P {
     fn new(t: Vec<T>) -> Self {
+        Self::with_pos(t, Vec::new())
+    }
+    fn with_pos(t: Vec<T>, pos: Vec<(u32, u32)>) -> Self {
         Self {
             t,
+            pos,
             i: 0,
             arrays: HashMap::new(),
             pending: Vec::new(),
@@ -222,6 +257,10 @@ impl P {
     }
     fn sep(&mut self) {
         while self.eat(";") {}
+    }
+    /// Merged-source line of the current token (0 when positions are unknown).
+    fn line(&self) -> u32 {
+        self.pos.get(self.i).map_or(0, |p| p.0)
     }
     fn array_slot(&self, name: &str, index: i64) -> Res<String> {
         let Some((_, len)) = self.arrays.get(name) else {
@@ -283,14 +322,14 @@ impl P {
         n
     }
     // A bounded decision chain is a conservative fallback on all backends.
-    // The final branch never performs memory access: it traps in a halt loop.
+    // The final branch never performs memory access: it executes the unified trap.
     fn dispatch(&self, array: &str, index: &str, result: &str, write: bool) -> Res<St> {
         let (elem, len) = self
             .arrays
             .get(array)
             .ok_or_else(|| format!("unknown array {array}"))?;
         let _ = elem;
-        let mut alternative = vec![St::While(Ex::Bool(true), vec![])];
+        let mut alternative = vec![St::Trap];
         for i in (0..*len).rev() {
             let slot = self.array_slot(array, i as i64)?;
             let target = if write {
@@ -484,6 +523,9 @@ impl P {
             if *self.cur() == T::End {
                 return Err("unclosed function body".into());
             }
+            if self.line() > 0 {
+                body.push(St::At(self.line()));
+            }
             let statement_start = body.len();
             if self.eat("let") {
                 let n = self.ident()?;
@@ -561,11 +603,14 @@ impl P {
                 let condition_checks = std::mem::take(&mut self.pending);
                 self.sep();
                 let yes = self.body()?;
+                // Look past separators for `else`; if absent, keep them as this statement's terminator.
+                let before_else = self.i;
                 self.sep();
                 let no = if self.eat("else") {
                     self.sep();
                     self.body()?
                 } else {
+                    self.i = before_else;
                     Vec::new()
                 };
                 body.extend(condition_checks);
@@ -677,7 +722,17 @@ impl P {
         scratch.append(&mut body);
         Ok(scratch)
     }
+    /// Parse a compilation unit; a syntax error gets the current token's position.
     fn parse(mut self) -> Res<Ast> {
+        let result = self.parse_items();
+        result.map_err(
+            |e| match self.pos.get(self.i.min(self.pos.len().saturating_sub(1))) {
+                Some(&(line, col)) => diagnostics::at(line, col, &e),
+                None => e,
+            },
+        )
+    }
+    fn parse_items(&mut self) -> Res<Ast> {
         let mut structs = HashMap::new();
         let mut funcs = Vec::new();
         let mut main = false;
@@ -721,6 +776,7 @@ impl P {
                     return Err(format!("duplicate struct {n}"));
                 }
             } else if self.is("fn") || self.is("unsafe") {
+                let fn_line = self.line();
                 self.arrays.clear();
                 self.scratch.clear();
                 self.scratch_id = 0;
@@ -754,8 +810,11 @@ impl P {
                     args,
                     ret,
                     body,
+                    line: fn_line,
                 });
-            } else if self.eat("program") {
+            } else if self.is("program") {
+                let fn_line = self.line();
+                self.i += 1;
                 self.arrays.clear();
                 self.scratch.clear();
                 self.scratch_id = 0;
@@ -767,6 +826,7 @@ impl P {
                 funcs.push(Fun {
                     name: "__main".into(),
                     unsafe_fn: false,
+                    line: fn_line,
                     args: vec![],
                     ret: Ty::I64,
                     body: {
@@ -1299,6 +1359,8 @@ fn check_block(
             return Err("unreachable statement after return".into());
         }
         match st {
+            St::Trap => {}
+            St::At(line) => diagnostics::set_line(*line),
             St::Asm(a) => {
                 if !unsafe_ctx {
                     return Err("asm requires unsafe block".into());
@@ -1420,6 +1482,7 @@ fn check_block(
                 let mut bslots = slots.clone();
                 let mut ao = *off;
                 let mut bo = *off;
+                let if_line = diagnostics::line();
                 let ar = check_block(
                     yes,
                     &mut av,
@@ -1446,6 +1509,7 @@ fn check_block(
                     unsafe_ctx,
                     target,
                 )?;
+                diagnostics::set_line(if_line); // errors about the whole `if` point at the `if`
                 // Branch-local declarations cannot escape; slots are still reserved in the frame.
                 for (k, v) in aslots {
                     if !slots.contains_key(&k) {
@@ -1490,6 +1554,7 @@ fn check_block(
                 let mut iv = vars.clone();
                 let mut islots = slots.clone();
                 let mut io = *off;
+                let while_line = diagnostics::line();
                 let _ = check_block(
                     body,
                     &mut iv,
@@ -1503,6 +1568,7 @@ fn check_block(
                     unsafe_ctx,
                     target,
                 )?;
+                diagnostics::set_line(while_line);
                 if inner != *dead {
                     return Err("drop in while is not supported safely".into());
                 }
@@ -1542,6 +1608,7 @@ fn check_for(
     // convention. Its struct argument is BORROWED; callers cannot invoke it
     // directly. The compiler inserts exactly one call per live owning local.
     for f in &ast.funcs {
+        diagnostics::set_line(f.line);
         if let Some(ty_name) = f.name.strip_prefix("__drop_") {
             if !ast.structs.contains_key(ty_name)
                 || f.args.len() != 1
@@ -1558,6 +1625,7 @@ fn check_for(
     }
     let mut frames = HashMap::new();
     for f in &ast.funcs {
+        diagnostics::set_line(f.line);
         if f.args.len() > 64 {
             return Err("too many arguments".into());
         }
@@ -1610,6 +1678,7 @@ fn check_for(
             false,
             target,
         )?;
+        diagnostics::set_line(f.line);
         if !returns && f.ret != Ty::Void {
             return Err(format!("{}: missing return", f.name));
         }
@@ -1759,6 +1828,7 @@ fn check_usize_literals(
     ) -> Res<()> {
         for st in body {
             match st {
+                St::Trap | St::At(_) => {}
                 St::Let(_, ty, e) => expression(e, Some(ty), vars, ast, fs, max)?,
                 St::Assign(name, e) => expression(e, vars.get(name), vars, ast, fs, max)?,
                 St::Ret(e) => expression(e, Some(ret), vars, ast, fs, max)?,
@@ -1813,6 +1883,7 @@ fn ast_uses_extended_integer(ast: &Ast) -> bool {
     }
     fn stmts(body: &[St]) -> bool {
         body.iter().any(|s| match s {
+            St::Trap | St::At(_) => false,
             St::Let(_, t, e) => has_ty(t) || ex(e),
             St::Assign(_, e) | St::Ret(e) | St::Expr(e) => ex(e),
             St::If(c, a, b) => ex(c) || stmts(a) || stmts(b),
@@ -1833,7 +1904,8 @@ fn compile_for(source: &str, target: target::Target) -> Res<Vec<u8>> {
     if !target.is_implemented() {
         return Err("target backend unavailable or exact MCU not selected".into());
     }
-    let ast = P::new(lex(source)?).parse()?;
+    let (tokens, positions) = lex_pos(source)?;
+    let ast = P::with_pos(tokens, positions).parse()?;
     // No silent truncation on targets whose width-aware code generator is pending.
     if !matches!(
         target.arch,
@@ -1844,7 +1916,10 @@ fn compile_for(source: &str, target: target::Target) -> Res<Vec<u8>> {
             "fixed-width integer operations and 'as' are not implemented on this target".into(),
         );
     }
-    let (fs, frames) = check_for(&ast, target)?;
+    diagnostics::set_line(0);
+    let checked = check_for(&ast, target);
+    let (fs, frames) = checked.map_err(|e| diagnostics::at(diagnostics::line(), 0, &e))?;
+    diagnostics::set_line(0);
     check_usize_literals(&ast, &fs, &frames, target)?;
     let hir = ir::lower(&ast, &frames, &fs)?;
     match target.arch {
@@ -1858,9 +1933,30 @@ fn compile_for(source: &str, target: target::Target) -> Res<Vec<u8>> {
         _ => Err(format!("backend not implemented for {:?}", target.arch)),
     }
 }
+/// Writes driver output to stdout. A closed pipe (`mini ... | head`) is a normal
+/// way for a reader to stop early; it must end the program quietly, never panic.
+fn write_stdout(text: &str) -> Res<()> {
+    use std::io::Write;
+    let mut out = std::io::stdout().lock();
+    match out.write_all(text.as_bytes()).and_then(|_| out.flush()) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => std::process::exit(0),
+        Err(e) => Err(format!("cannot write output: {e}")),
+    }
+}
 fn main() {
     let args: Vec<_> = env::args().collect();
+    let mut map: Option<diagnostics::SourceMap> = None;
     let result: Res<()> = (|| {
+        if args.len() == 3 && args[1] == "--explain" {
+            return match diagnostics::explain(&args[2]) {
+                Some(text) => write_stdout(&text),
+                None => Err(format!("unknown error code {}", args[2])),
+            };
+        }
+        if args.len() == 2 && args[1] == "--print-errors" {
+            return write_stdout(&diagnostics::catalogue_markdown());
+        }
         if args.len() == 3 && args[1] == "--emit-ir" {
             let source = preprocess::load_source(
                 Path::new(&args[2]),
@@ -1868,14 +1964,14 @@ fn main() {
             )?;
             let ast = P::new(lex(&source)?).parse()?;
             let (funcs, frames) = check(&ast)?;
-            print!("{}", ir::lower(&ast, &frames, &funcs)?.dump());
+            write_stdout(&ir::lower(&ast, &frames, &funcs)?.dump())?;
             return Ok(());
         }
         if args.len() == 3 && args[1] == "--check-device" {
             let p = device_config::DeviceProfile::load(Path::new(&args[2]))?;
             let t = target::Target::from_device(&p);
-            println!(
-                "device: {}\ncpu: {:?}\nflash: 0x{:08X}..0x{:08X}\nram: 0x{:08X}..0x{:08X}\nstack reserve: {} bytes\nfeatures: {}\nvectors (compiler): {}\noutput (compiler): {:?}\nbackend: {}",
+            write_stdout(&format!(
+                "device: {}\ncpu: {:?}\nflash: 0x{:08X}..0x{:08X}\nram: 0x{:08X}..0x{:08X}\nstack reserve: {} bytes\nfeatures: {}\nvectors (compiler): {}\noutput (compiler): {:?}\nbackend: {}\n",
                 p.name,
                 p.layout.cpu,
                 p.layout.flash.start,
@@ -1891,7 +1987,7 @@ fn main() {
                 } else {
                     "NOT IMPLEMENTED"
                 }
-            );
+            ))?;
             return Ok(());
         }
         let (target, input, output) = match args.as_slice() {
@@ -1902,14 +1998,15 @@ fn main() {
                 let p=device_config::DeviceProfile::load(Path::new(map))?;
                 (target::Target::from_device(&p),input,output)
             },
-            _ => return Err("Usage: mini [--target TRIPLE | --device FILE.target] INPUT.mini -o OUTPUT; mini --check-device FILE.target; mini --emit-ir INPUT.mini".into())
+            _ => return Err("Usage: mini [--target TRIPLE | --device FILE.target] INPUT.mini -o OUTPUT; mini --check-device FILE.target; mini --emit-ir INPUT.mini; mini --explain E0xxx; mini --print-errors".into())
         };
         if !target.is_implemented() {
             return Err(format!(
                 "target {target:?} backend is not implemented or target profile unavailable"
             ));
         }
-        let source = preprocess::load_source(Path::new(input), target)?;
+        let (source, source_map) = preprocess::load_source_mapped(Path::new(input), target)?;
+        map = Some(source_map);
         let bytes = compile_for(&source, target)?;
         let path = Path::new(output);
         fs::write(path, bytes).map_err(|e| e.to_string())?;
@@ -1922,7 +2019,7 @@ fn main() {
         Ok(())
     })();
     if let Err(e) = result {
-        eprintln!("mini: {e}");
+        eprintln!("{}", diagnostics::render(&e, map.as_ref()));
         std::process::exit(1);
     }
 }
@@ -2466,7 +2563,7 @@ mod reassignment_42_tests {
     fn reassignment_on_8bit_and_thumb_subset() {
         let source = "fn count() -> usize { let x:usize=0; while x < 5 { x = x + 1 }; return x } program { count(); return 0 }";
         for t in ["c64-6510", "avr8-atmega328p", "thumbv7m-stm32f103c8"] {
-            let Ok(target) = target::Target::parse(t) else {
+            let Some(target) = target::Target::parse(t) else {
                 continue;
             };
             assert!(compile_for(source, target).is_ok(), "{t}");
@@ -2515,7 +2612,7 @@ mod fixed_width_43_tests {
             let target = target::Target::parse(t).unwrap();
             assert!(compile_for(code, target).is_ok(), "{t}");
         }
-        for t in ["thumbv7m-stm32f103c8", "avr8-atmega328p", "c64-6510"] {
+        for t in ["thumbv7m-none", "avr8-atmega328p", "c64-6510"] {
             let target = target::Target::parse(t).unwrap();
             assert!(compile_for(code, target).is_err(), "{t}");
         }
@@ -2523,6 +2620,8 @@ mod fixed_width_43_tests {
     #[test]
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     fn generated_elf_casts_and_bounds_execute() {
+        /// Expected status of a trapping program: killed by SIGILL (signal 4).
+        const TRAP: i32 = -4;
         use std::{fs, process::Command};
         let programs = [
             ("program { let a:u8=40; a = a + 2; return a as i64 }", 42),
@@ -2530,15 +2629,15 @@ mod fixed_width_43_tests {
                 "program { let a:i8= -20; let b:i8=2; return (a / b) as i64 }",
                 246,
             ),
-            ("program { let a:u8=255; a = a + 1; return 0 }", 101),
-            ("program { let a:i8=127; a = a + 1; return 0 }", 101),
+            ("program { let a:u8=255; a = a + 1; return 0 }", TRAP),
+            ("program { let a:i8=127; a = a + 1; return 0 }", TRAP),
             (
                 "program { let a:i64= -1; let b:u8=a as u8; return b as i64 }",
-                101,
+                TRAP,
             ),
             (
                 "program { let a:u16=300; let b:u8=a as u8; return b as i64 }",
-                101,
+                TRAP,
             ),
             (
                 "program { let a:i8= -1; if a < 0 {return 42} else {return 2} }",
@@ -2559,7 +2658,12 @@ mod fixed_width_43_tests {
             let result = Command::new(&path).status();
             let _ = fs::remove_file(&path);
             let status = result.expect("Mini generated ELF could not be executed");
-            assert_eq!(status.code(), Some(*expected), "{code}");
+            // A Mini runtime trap is an illegal instruction: the process dies by SIGILL.
+            use std::os::unix::process::ExitStatusExt;
+            let observed = status
+                .code()
+                .or_else(|| status.signal().map(|signal| -signal));
+            assert_eq!(observed, Some(*expected), "{code}");
         }
     }
 }
@@ -2684,16 +2788,13 @@ mod array48_checked_index_tests {
         let body = &ast.funcs.last().unwrap().body;
         let debug = format!("{body:?}");
         assert!(debug.contains("__mini_arr_tmp_"));
-        assert!(
-            debug.contains("While(Bool(true), [])"),
-            "missing fail-stop: {debug}"
-        );
+        assert!(debug.contains("Trap"), "missing fail-stop trap: {debug}");
         assert!(debug.contains("__mini_arr_a_2"));
     }
 
     #[test]
     fn dynamic_store_inside_loop_is_lowered_without_branch_local_declarations() {
-        let code = "program { let a:[usize;3]=[0;3]; let i:usize=0; while i < 3 { a[i]=i; i=i+1 } return a[2] as i64 }";
+        let code = "program { let a:[usize;3]=[0;3]; let i:usize=0; while i < 3 { a[i]=i; i=i+1 }; return a[2] as i64 }";
         let ast = P::new(lex(code).unwrap()).parse().unwrap();
         let f = ast.funcs.last().unwrap();
         assert!(f.body.iter().any(|s| matches!(s, St::While(_, _))));
@@ -2723,7 +2824,7 @@ mod array48_checked_index_tests {
     fn x86_dynamic_index_executes_with_expected_result() {
         use std::os::unix::fs::PermissionsExt;
         use std::{fs, process::Command};
-        let code = "program { let a:[usize;4]=[0;4]; let i:usize=0; while i<4 { a[i]=i+39; i=i+1 } return a[3] as i64 }";
+        let code = "program { let a:[usize;4]=[0;4]; let i:usize=0; while i<4 { a[i]=i+39; i=i+1 }; return a[3] as i64 }";
         let bytes = compile(code).unwrap();
         let path = std::env::temp_dir().join(format!("mini_array48_{}", std::process::id()));
         fs::write(&path, bytes).unwrap();

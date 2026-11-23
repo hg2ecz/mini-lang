@@ -620,3 +620,32 @@ A példák egy része negatív teszt: szándékosan hibás, hogy a fordító biz
 A Mini 4.4.0 **fejlesztői fordító**, és a különböző backendek képességei nem azonosak. A kézikönyv alapján ne következtess arra, hogy egy Linuxon elfogadott struktúrakezelő program AVR8-on vagy Cortex-M-en is támogatott. A memória- és ownership-védelem jelenleg részleges; nincsenek általános szálak, teljes atomikus műveletek vagy C ABI kompatibilitási garanciák.
 
 Új program készítésekor először válassz célt, és csak a backend által támogatott Mini-részhalmazra támaszkodj. Későbbi fordítóverziókban a kézikönyvet a tényleges teszteredményekkel együtt kell frissíteni.
+
+## Hibaüzenetek és futásidejű trap (4.9.1)
+
+### Fordítási hibák
+
+Minden fordítási hiba stabil **hibakódot** kap, és – ahol a hely ismert – megmutatja a fájlt, a sort, az oszlopot és magát a forrássort, `#include`-olt fájlban is:
+
+```text
+mini: error[E0001]: invalid character 0x24
+  --> main.mini:2:20
+   |
+ 2 |     let a: i64 = 1 $
+   |                    ^
+  = részletek / details: mini --explain E0001
+```
+
+A kód magyarázata példával: `mini --explain E0001`. A teljes lista: [HIBAKODOK.md](HIBAKODOK.md) (a fordító generálja: `mini --print-errors`).
+Az ellenőrző hibái (típus, tulajdonjog, `unsafe`) a hibás utasítás sorára mutatnak; a célplatform kódgenerátorának hibái egyelőre hely nélkül jelennek meg.
+
+### Futásidejű trap
+
+Ha egy ellenőrzés futás közben bukik el – túlcsordulás, nullával osztás, sikertelen `as`, tömbön kívüli index –, a program azonnal leáll (*fail-stop*), és nem fut tovább hibás értékkel:
+
+| Cél | Trap | Normál vége |
+|---|---|---|
+| x86-64, AArch64, ARMv7 Linux | illegális utasítás → SIGILL, a shellben `132` | a `program` visszatérési értéke (0–255) |
+| Cortex-M | `BKPT #0`, majd végtelen ciklus | `BKPT #1`, majd végtelen ciklus |
+
+Így egy `return 101` és egy túlcsordulás soha nem téveszthető össze. A trap okának kiírása (például „index out of bounds”) a következő kiadások egyike.

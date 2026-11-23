@@ -228,14 +228,13 @@ impl X86Encoder {
         self.bytes(&[0x0f, condition.set_code(), 0xc0, 0x48, 0x0f, 0xb6, 0xc0]);
         Ok(())
     }
-    pub(crate) fn linux_exit(&mut self, status: i64) {
-        self.mov_rax_imm64(status);
-        self.mov_rdi_rax();
-        self.mov_rax_imm64(60);
-        self.syscall();
-    }
     pub(crate) fn syscall(&mut self) {
         self.bytes(&[0x0f, 0x05]);
+    }
+    /// UD2: guaranteed invalid opcode; Linux delivers SIGILL. Used as Mini's
+    /// runtime trap so a failed check can never look like a normal exit code.
+    pub(crate) fn ud2(&mut self) {
+        self.bytes(&[0x0f, 0x0b]);
     }
     pub(crate) fn asm_instruction(&mut self, name: &str) -> Result<(), String> {
         match name {

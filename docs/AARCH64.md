@@ -54,7 +54,7 @@ call even if its assembly is syntactically valid.
 
 The AArch64 backend uses 64-bit signed `i64`, unsigned `usize` (64 bits on this
 target), and one 64-bit slot per `bool`. Checked arithmetic traps via Linux
-`exit(101)` on signed/unsigned overflow and division by zero. `i64::MIN / -1`
+a trap (illegal instruction `udf #0`, SIGILL; shell status 132 – exit code 101 until 4.8) on signed/unsigned overflow and division by zero. `i64::MIN / -1`
 traps. This is not a guarantee of complete memory or resource safety.
 
 **Updated in Mini 3.8:** owning scalar-field structures can call a Mini-written

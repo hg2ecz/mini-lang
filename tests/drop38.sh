@@ -50,6 +50,7 @@ if [[ $(uname -sm) == 'Linux x86_64' ]]; then
     test_exit return_preserved 42
     test_exit void_exit 74
     test_exit early_return 75
+    test_exit branch_return_state 42
 else
     echo "Skipping x86-64 native execution on this host"
 fi

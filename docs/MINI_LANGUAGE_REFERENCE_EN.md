@@ -100,7 +100,7 @@ General implicit `i64`↔`usize` conversions are forbidden. `u8`–`u64` and `i8
 | ARMv7-A Linux | `i8`–`i64`, `u8`–`u32`; restricted `u64` storage/casts | `u64` arithmetic/comparison rejected |
 | Thumb/Cortex-M, AVR8, C64 | Earlier scalar subset | New widths and `as` unavailable |
 
-**`f32` and `f64` are not implemented on any target.** Integer `as` is checked: out-of-range values trap (on Linux since 4.9: illegal instruction, SIGILL, shell status 132). Direct positive integer literals currently do not exceed `i64::MAX`. Rust compilation and end-to-end generated-program execution were not verified during this documentation update.
+**`f32` and `f64` are not implemented on any target.** Integer `as` is checked: out-of-range values trap (intended exit status 101 on Linux). Direct positive integer literals currently do not exceed `i64::MAX`. Rust compilation and end-to-end generated-program execution were not verified during this documentation update.
 
 ## 4. Variables: declarations, initialization, limitations
 

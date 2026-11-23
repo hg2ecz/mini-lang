@@ -13,7 +13,7 @@ set -e
 set +e
 "$TMP/overflow"; code=$?
 set -e
-[[ "$code" -eq 132 ]] || { echo "expected overflow trap (SIGILL, 132), got $code"; exit 1; }
+[[ "$code" -eq 101 ]] || { echo "expected overflow exit 101, got $code"; exit 1; }
 ./target/release/mini --target x86_64-linux examples/scalars/signed_comparison.mini -o "$TMP/signed"
 set +e
 "$TMP/signed"; code=$?

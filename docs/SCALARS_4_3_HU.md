@@ -40,7 +40,7 @@ program {
 
 ## Az `as` jelentése
 
-Az `as` **ellenőrzött egész-egész konverzió**; ha a szám nem fér el a céltípusban, az x86-64 Linux program trappel leáll (4.9 óta SIGILL, a shellben 132; korábban 101-es kilépési kód). Nem csonkolja észrevétlenül a biteket. A `bool` és a lebegőpontos konverziók még nem támogatottak.
+Az `as` **ellenőrzött egész-egész konverzió**; ha a szám nem fér el a céltípusban, az x86-64 Linux program 101-es kilépési kóddal leáll. Nem csonkolja észrevétlenül a biteket. A `bool` és a lebegőpontos konverziók még nem támogatottak.
 
 A szűk egész típusokon az összeadás, kivonás, szorzás, osztás és negálás után tartományellenőrzés következik. A nullával osztás szintén ellenőrzött leállást vált ki. Az összehasonlítások a típustól függően előjeles vagy előjel nélküli módot használnak.
 

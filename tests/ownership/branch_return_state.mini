@@ -1,8 +1,0 @@
-struct Guard { code:i64 }
-fn __drop_Guard(g:Guard) {}
-fn make()->Guard {unsafe{return Guard(1)}}
-program {
-    let g:Guard=make()
-    if true { drop g } else { return g.code }
-    return 42
-}

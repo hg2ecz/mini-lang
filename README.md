@@ -1,45 +1,73 @@
-# Mini Native 4.9.1 – Alapozás / Foundation
+# Mini Native 4.5.1 – Linux file owner library + developer tooling
 
-**A Mini inkább tudjon kevesebbet, de azt megbízhatóan.** / **Mini should do less, but do it reliably.**
+**Mini should do less, but do it reliably.** / **A Mini inkább tudjon kevesebbet, de azt megbízhatóan.**
 
-Kísérleti, Rust 2024 nyelven írt fordító a Mini nyelvhez. Célok: x86-64 Linux, AArch64 Linux, ARMv7 Linux, Cortex-M (Thumb), AVR8, Commodore 64.
-An experimental Rust 2024 compiler for the Mini language.
+This is an experimental Rust 2024 compiler. Feature support depends on the target; the source tree is **not** a guarantee of successful compilation or execution on all architectures.
 
-A 4.9 az első kiadás, amelynek fordítóját és tesztjeit **ténylegesen lefordították és lefuttatták**, a generált programokat pedig x86-64-en natívan, AArch64-en és ARMv7-en QEMU alatt, Cortex-M-en Unicorn emulátorban végrehajtották. Részletek: [CHANGELOG.md](CHANGELOG.md), [docs/VERIFICATION.md](docs/VERIFICATION.md).
+## Documentation (current)
 
-## Fordítás és tesztek / Build and test
+Start with [docs/README.md](docs/README.md). The authoritative language descriptions are:
+
+- [Magyar nyelvi referencia](docs/MINI_LANGUAGE_REFERENCE_HU.md)
+- [English language reference](docs/MINI_LANGUAGE_REFERENCE_EN.md)
+- [Magyar felhasználói kézikönyv](docs/MINI_USER_GUIDE_HU.md)
+- [English user guide](docs/MINI_USER_GUIDE_EN.md)
+
+The fixed-width integer and ARM coverage in 4.4 is documented in `docs/SCALARS_4_4_HU.md` and `docs/SCALARS_4_4_EN.md`. Float (`f32`, `f64`) support is **not implemented**. See [RELEASE_4_4.md](RELEASE_4_4.md) and [PROJECT_HISTORY.md](PROJECT_HISTORY.md) for historical release details.
+
+## Developer tools (new in 4.5)
+
+- **`tools/minifmt`**: Python 3 Mini formatter, with `--check`, `--stdout` and `--write`.
+- **`editor/vim/`**: `.mini` filetype detection, syntax highlighting, 4-space indentation defaults.
+- **`editor/mcedit/`**: Midnight Commander highlighting rules and `Syntax` registration example.
+- [Magyar telepítés és használat](docs/EDITOR_TOOLS_HU.md) / [English setup and usage](docs/EDITOR_TOOLS_EN.md).
+
+The formatter is an **independent developer tool**, not a compiler feature. It conservatively preserves directives, strings and comments; semantic preservation has not been proven for all Mini programs. See its tests and limitations.
+
+## Linux file ownership library (4.5.1)
+
+- `lib/io/file.mini` – owning `File`, `openat` wrappers, borrowed `read`/`write`, automatic and explicit `drop`/`close`.
+- [Magyar fájlkezelési útmutató](docs/FILE_IO_HU.md) / [English file I/O guide](docs/FILE_IO_EN.md).
+- `examples/file_auto_drop.mini`, `examples/file_explicit_drop.mini`.
+- `bash tests/file_io46.sh` (requires a built Mini compiler).
+
+**Caution:** the current language lacks validated slices, private fields, and a checked `Result<File, Error>` type, so raw paths/buffers and descriptor adoption remain `unsafe`. This is not a generally safe file API.
+
+## Build and tests
 
 ```sh
+python3 tests/test_minifmt.py
+bash tests/editor_tooling45.sh
 cargo build --release
-bash tests/run_all.sh        # build + unit tests + every tests/*.sh
+cargo test
+bash tests/docs_consistency44.sh
+bash tests/arm_integers44.sh
 ```
 
-Opcionális futtatók / optional runners: `qemu-aarch64`, `qemu-arm` (Linux ARM célok), `python3 -m pip install unicorn` (Cortex-M). Ha hiányoznak, az érintett tesztek „SKIPPED” jelzést adnak.
+For platform libraries look under `lib/`. For educational examples see `examples/tutorial/` and `docs/EXAMPLES_HU.md` / `docs/EXAMPLES_EN.md`.
 
-## Használat / Usage
+**Verification:** formatter unit tests and idempotence across packaged Mini sources, Bash syntax, and Vim filetype/syntax loading were checked here. mcedit execution and a Cargo build/generated-program execution were not verified in this environment.
 
-```sh
-./target/release/mini program.mini -o program                       # x86-64 Linux
-./target/release/mini --target aarch64-linux program.mini -o program
-./target/release/mini --device targets/devices/stm32f103c8.target fw.mini -o fw.elf
-./target/release/mini --emit-ir program.mini                         # typed IR dump
-```
 
-## Futásidejű hibák / Runtime errors
+## Mini 4.6 – target-specific memory model (experimental)
 
-Túlcsordulás, nullával osztás, sikertelen `as` konverzió és tömbön kívüli index esetén a program **trappel**: Linuxon illegális utasítással (SIGILL, a shellben 132-es állapot), Cortex-M-en `BKPT #0` utasítással (a normál vég `BKPT #1`). A trap így soha nem téveszthető össze egy normál visszatérési értékkel.
-Overflow, division by zero, failed `as` conversions and out-of-bounds indices trap (SIGILL on Linux, `BKPT` on Cortex-M).
+- Bare metal: **no heap**. Fixed-size arrays inside functions are a design requirement, **not yet supported by the current compiler**.
+- Linux x86-64 / AArch64: `lib/memory/linux_buffer.mini` implements an owning `mmap` buffer with `__drop_Buffer` / `munmap`; safe capacity/range queries and `unsafe` raw-fd I/O.
+- No new compiler IR opcode or allocator builtin is introduced.
+- The library is gated using target-aware `#if os` / `#if arch`.
+- See [Hungarian memory model](docs/MEMORY_MODEL_HU.md) / [English memory model](docs/MEMORY_MODEL_EN.md).
+- Run `bash tests/memory46.sh` (Cargo tests run only if available).
 
-## Hibaüzenetek / Error messages
+This is **not** a fully memory-safe, general-purpose buffer API yet: fixed arrays, checked byte indexing, and a fully verified ownership checker are pending.
 
-Minden fordítási hiba stabil kódot és – ahol ismert – `fájl:sor:oszlop` helyet kap, a hibás forrássorral együtt. Magyarázat: `mini --explain E0301`; teljes lista: [docs/HIBAKODOK.md](docs/HIBAKODOK.md).
+## 4.7: Fixed-size arrays
 
-## Dokumentáció / Documentation
+See [magyar leírás](docs/ARRAYS_HU.md) / [English reference](docs/ARRAYS_EN.md). Literal-indexed fixed local arrays are parsed into existing scalar locals. Dynamic indexes and packed byte arrays are not implemented yet. Run `bash tests/arrays47.sh` on a Rust-enabled machine.
 
-- Kezdőpont / start here: [docs/README.md](docs/README.md)
-- [Magyar nyelvi referencia](docs/MINI_LANGUAGE_REFERENCE_HU.md) · [English reference](docs/MINI_LANGUAGE_REFERENCE_EN.md)
-- [Magyar felhasználói kézikönyv](docs/MINI_USER_GUIDE_HU.md) · [English user guide](docs/MINI_USER_GUIDE_EN.md)
-- Fejlesztési terv / roadmap: [docs/MINI_FEJLESZTESI_TERV.md](docs/MINI_FEJLESZTESI_TERV.md)
-- Korábbi kiadási jegyzetek / release history: `docs/history/`
+## Mini 4.8 (experimental): checked array indices
 
-**Figyelem:** a Mini még nem ad általános memóriabiztonsági garanciát; az `unsafe` könyvtári kód helyessége a könyvtár írójának felelőssége.
+See [Hungarian guide](docs/ARRAYS_4_8_HU.md), [English guide](docs/ARRAYS_4_8_EN.md)
+and [release notes](RELEASE_4_8.md). The prototype uses an O(N) bounds-checked
+branch chain for arrays up to 16 elements. Literal arithmetic indices are
+resolved at compile time with no runtime bounds check. The loop-range optimizer,
+contiguous indexed storage and runtime fault reporting are not yet implemented.

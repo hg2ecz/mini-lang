@@ -39,7 +39,7 @@ program {
 }
 ```
 
-`as` checks whether the integer fits the destination type. A failed conversion triggers the Mini trap on x86-64 Linux (SIGILL, shell status 132 since 4.9; exit code 101 before); values are never silently truncated. Boolean and floating-point conversions are not supported yet. Narrow integer arithmetic checks its result range, and divide-by-zero triggers a checked failure. Comparisons respect signedness.
+`as` checks whether the integer fits the destination type. A failed conversion triggers exit code 101 on x86-64 Linux; values are never silently truncated. Boolean and floating-point conversions are not supported yet. Narrow integer arithmetic checks its result range, and divide-by-zero triggers a checked failure. Comparisons respect signedness.
 
 ## Current limitations
 

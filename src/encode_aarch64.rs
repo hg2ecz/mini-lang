@@ -33,10 +33,6 @@ impl Encoder {
     pub(crate) fn word(&mut self, w: u32) {
         self.code.emit_u32(w);
     }
-    /// UDF #0 (permanently undefined); Linux delivers SIGILL. Mini runtime trap.
-    pub(crate) fn udf(&mut self) {
-        self.word(0x0000_0000);
-    }
     pub(crate) fn label(&mut self, name: &str) -> Res<()> {
         self.code.define(name)
     }
@@ -209,6 +205,11 @@ impl Encoder {
     }
     pub(crate) fn svc(&mut self) {
         self.word(0xD400_0001);
+    }
+    pub(crate) fn linux_exit(&mut self, status: i64) {
+        self.imm(0, status);
+        self.imm(8, 93);
+        self.svc();
     }
     pub(crate) fn asm_instruction(&mut self, name: &str) -> Res<()> {
         match name {

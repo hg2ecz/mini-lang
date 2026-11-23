@@ -1,34 +1,27 @@
-# Ellenőrzés / Verification – Mini 4.9.1
+# Verification notes – Mini Native 3.2
 
-Ez a dokumentum azt rögzíti, **mit futtattunk ténylegesen** ennél a kiadásnál.
+## Checks performed while assembling this source archive
 
-## Környezet
+- Bash syntax: `bash -n tests/native32.sh` passed.
+- Static check: `src/backend_x86.rs` does not contain hexadecimal x86 opcode literals and does not directly emit raw bytes.
+- The expected critical x86-64 encodings (signed/unsigned compare, multiplication and division, register moves, flags) were checked against the GNU `as`/`objdump` disassembly available in the packaging environment.
+- The tarball was verified with `tar -tzf` and `gzip -t`.
 
-| Eszköz | Verzió | Szerep |
-|---|---|---|
-| Rust / Cargo | 1.100.0 (conda-forge) | a fordító építése és unit tesztjei |
-| LLVM `llvm-mc`, `llvm-objdump` | 23.1 | független referencia az utasításkódolókhoz |
-| QEMU user mode | 8.2.2 | AArch64 és ARMv7 Linux programok futtatása |
-| Unicorn | 2.1.4 | Cortex-M firmware futtatása (`tools/run_cortexm.py`) |
+## Checks NOT performed
 
-## Eredmények
+- **No Rust toolchain (`cargo`, `rustc`) is installed in the packaging environment.** Accordingly, `cargo build`, `cargo test`, `tests/native32.sh` and generated ELF execution were **not run**.
+- The new signed overflow traps and ABI preserve tests are source-level work awaiting real native execution. They are **not** yet a guarantee of correctness.
+- Mini 3.8 adds limited local-owner destructor calls, but general ownership and memory safety remain incomplete. Neither the new Rust code nor the generated binaries were executed in this environment.
 
-| Ellenőrzés | Eredmény |
-|---|---|
-| `cargo build --release` | sikeres, 0 figyelmeztetés |
-| `cargo test` | 110 / 110 sikeres |
-| `tests/*.sh` (28 szkript, `tests/run_all.sh`) | mind sikeres (a Vim-integráció kihagyva) |
-| x86-64 Linux generált programok | natívan futtatva |
-| AArch64 Linux generált programok | QEMU alatt futtatva (`arm64_native.sh`, `foundation49.sh`) |
-| ARMv7 Linux generált programok | QEMU alatt futtatva (`arm32_native.sh`, `foundation49.sh`) |
-| Cortex-M (STM32F103) firmware | Unicorn alatt futtatva (`thumb_exec49.sh`) |
-| Thumb `BL` kódolás | 9 eltolás összevetve az LLVM kimenetével |
-| AVR8, C64 | csak fordítás és statikus ellenőrzés; végrehajtás nem automatizált |
-| Vim, mcedit szerkesztőintegráció | nem futtatva (az eszközök hiányoztak) |
-
-## Reprodukálás
+## How to certify the package on x86-64 Linux
 
 ```sh
+cargo --version
+cargo test
 cargo build --release
-PATH=/path/to/qemu:$PATH bash tests/run_all.sh
+bash tests/native32.sh
+bash tests/encoder31.sh
+bash tests/dead_code.sh
 ```
+
+Please report failing test output rather than assuming the compiler works. The Mini language is still experimental.

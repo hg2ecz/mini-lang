@@ -100,7 +100,6 @@ struct Loader {
     seen: HashSet<PathBuf>,
     active: HashSet<PathBuf>,
     output: String,
-    map: Vec<(String, u32)>,
 }
 impl Loader {
     fn visit(&mut self, filename: &Path) -> Res<()> {
@@ -187,7 +186,6 @@ impl Loader {
             } else if enabled {
                 self.output.push_str(line);
                 self.output.push('\n');
-                self.map.push((path.display().to_string(), line_no as u32));
             }
         }
         if !stack.is_empty() {
@@ -198,26 +196,14 @@ impl Loader {
 }
 
 pub(crate) fn load_source(path: &Path, target: Target) -> Res<String> {
-    Ok(load_source_mapped(path, target)?.0)
-}
-/// Like `load_source`, plus the original file and line of every output line,
-/// so diagnostics can point into included files.
-pub(crate) fn load_source_mapped(
-    path: &Path,
-    target: Target,
-) -> Res<(String, crate::diagnostics::SourceMap)> {
     let mut loader = Loader {
         target,
         seen: HashSet::new(),
         active: HashSet::new(),
         output: String::new(),
-        map: Vec::new(),
     };
     loader.visit(path)?;
-    Ok((
-        loader.output,
-        crate::diagnostics::SourceMap { lines: loader.map },
-    ))
+    Ok(loader.output)
 }
 
 #[cfg(test)]

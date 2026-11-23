@@ -28,7 +28,7 @@ for target in aarch64-linux armv7-linux-soft armv7-linux-hard; do
             elif command -v qemu-arm >/dev/null; then runner=(qemu-arm);
             else continue; fi;;
     esac
-    for case_and_status in cast_and_update:42 signed_multiply:42 overflow:132 cast_out_of_range:132; do
+    for case_and_status in cast_and_update:42 signed_multiply:42 overflow:101 cast_out_of_range:101; do
         example="${case_and_status%:*}"; expected="${case_and_status#*:}"
         set +e
         "${runner[@]}" "$work/${target}_${example}"

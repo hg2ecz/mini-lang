@@ -25,7 +25,7 @@ for src in examples/tutorial/*.mini; do
   status=$?
   set -e
   expected=42
-  if [[ "$base" == 25_runtime_div_zero ]]; then expected=132; fi
+  if [[ "$base" == 25_runtime_div_zero ]]; then expected=101; fi
   if [[ "$status" -ne "$expected" ]]; then
     echo "FAIL $base: exit $status, expected $expected" >&2
     cat "$work/$base.stderr" >&2

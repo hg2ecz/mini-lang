@@ -37,14 +37,14 @@ run_case scalar_struct 42 'struct R { value: i64; ok: bool } fn mk(x: i64, ok: b
 run_case forwarded_struct 42 'struct R { value: i64; ok: bool } fn make(x: i64)->R { return R(x,true) } fn forward(x: i64)->R { return make(x) } program { let v: R = forward(42); return v.value }'
 run_case unsigned 42 'program { let a: usize = 7; let b: usize = 7; if a >= b { return 42 } else { return 0 } }'
 
-# A failed checked operation must trap with SIGILL (shell status 132), never wrap or exit normally.
-run_case overflow_add 132 'program { return 9223372036854775807 + 1 }'
-run_case overflow_mul 132 'program { return 3037000500 * 3037000500 }'
-run_case overflow_sub 132 'program { return -9223372036854775807 - 2 }'
-run_case overflow_neg 132 'program { let x: i64 = -9223372036854775807 - 1; return -x }'
-run_case overflow_div 132 'program { let x: i64 = -9223372036854775807 - 1; return x / -1 }'
-run_case div_zero 132 'program { return 5 / 0 }'
-run_case unsigned_underflow 132 'program { let a: usize = 0; let b: usize = 1; return (a - b) as i64 }'
+# A failed checked operation must terminate with exit 101, not SIGFPE or wraparound.
+run_case overflow_add 101 'program { return 9223372036854775807 + 1 }'
+run_case overflow_mul 101 'program { return 3037000500 * 3037000500 }'
+run_case overflow_sub 101 'program { return -9223372036854775807 - 2 }'
+run_case overflow_neg 101 'program { let x: i64 = -9223372036854775807 - 1; return -x }'
+run_case overflow_div 101 'program { let x: i64 = -9223372036854775807 - 1; return x / -1 }'
+run_case div_zero 101 'program { return 5 / 0 }'
+run_case unsigned_underflow 101 'program { let a: usize = 0; let b: usize = 1; return a - b }'
 
 # Architecture- and ABI-specific Linux asm stays in the included Mini library.
 ./target/release/mini examples/hello.mini -o "$work/hello"

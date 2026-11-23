@@ -51,9 +51,7 @@ fn buffer_capacity(buffer: Buffer) -> i64 {
 
 // Offset and count are checked before they are ever added to a pointer.
 fn buffer_fits(buffer: Buffer, offset: i64, count: i64) -> bool {
-    // Mini has no `not` operator and no bool `==` yet: test the flag directly.
-    if buffer.valid {
-    } else {
+    if buffer.valid == false {
         return false
     }
     if offset < 0 {

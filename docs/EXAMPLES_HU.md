@@ -32,7 +32,7 @@ A gyűjtemény a **tényleges Mini 4.1.x szintaxisát** használja. Minden péld
 | `examples/tutorial/22_linux_read_zero.mini` | linux read zero | 42 |
 | `examples/tutorial/23_linux_fsync_invalid.mini` | linux fsync invalid | 42 |
 | `examples/tutorial/24_linux_dup_invalid.mini` | linux dup invalid | 42 |
-| `examples/tutorial/25_runtime_div_zero.mini` | Nullával osztás (futásidejű csapda) | 132 (SIGILL) |
+| `examples/tutorial/25_runtime_div_zero.mini` | Nullával osztás (futásidejű csapda) | 101 |
 
 A 01–16. fájlok többsége Linux x86-64, AArch64 és ARM32 környezetben használható; a struktúra- és függvény-ABI működését célgépenként tesztelni kell. A 17–24. példák **Linux-specifikusak**. A 8 bites AVR/C64 és a Cortex-M célokra csak a backend által ténylegesen támogatott részhalmaz fordítható: ezekre nem ígérünk minden példánál működést.
 

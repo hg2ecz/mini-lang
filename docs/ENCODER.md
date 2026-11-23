@@ -19,7 +19,7 @@ The x86 encoder does not accept arbitrary Mini-source byte sequences. Supported 
 
 ## Fault behavior
 
-Checked integer arithmetic rejects unsafe cases by executing an illegal instruction (`ud2`, SIGILL, shell status **132**; exit code 101 until 4.8), rather than relying on undefined behavior or unhandled CPU traps. This release adds signed overflow traps for `+`, `-`, `*`, and unary `-`. Division rejects zero and `i64::MIN / -1`.
+Checked integer arithmetic rejects unsafe cases by executing Linux exit code **101**, rather than relying on undefined behavior or unhandled CPU traps. This release adds signed overflow traps for `+`, `-`, `*`, and unary `-`. Division rejects zero and `i64::MIN / -1`.
 
 The unsafe boundary is not a proof of correctness of included system libraries; their buffer lifetime, pointer and file descriptor invariants must be audited and tested separately.
 

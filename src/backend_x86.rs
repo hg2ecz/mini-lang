@@ -35,7 +35,7 @@ impl<'a> Gen<'a> {
         self.enc.patch_rel32(at, dest)
     }
     fn trap(&mut self) {
-        self.enc.ud2();
+        self.enc.linux_exit(101);
     }
     fn trap_unless(&mut self, condition: Condition) -> Res<()> {
         let skip = self.enc.branch(condition);
@@ -94,7 +94,6 @@ impl<'a> Gen<'a> {
     fn emit_stmts(&mut self, body: &[Stmt], fr: &Frame, ret: &Ty) -> Res<()> {
         for st in body {
             match st {
-                Stmt::Trap => self.trap(),
                 Stmt::Unsafe(body) => self.emit_stmts(body, fr, ret)?,
                 Stmt::Asm(a) => {
                     // Delay register assignments until all input expressions are evaluated.

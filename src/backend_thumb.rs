@@ -148,7 +148,6 @@ fn validate_expr(expr: &Expr, funcs: &HashMap<&str, &Function>) -> Res<()> {
 fn validate_stmts(body: &[Stmt], f: &Function, funcs: &HashMap<&str, &Function>) -> Res<()> {
     for item in body {
         match item {
-            Stmt::Trap => {}
             Stmt::Assign { value, .. } => validate_expr(value, funcs)?,
             Stmt::Bind { ty, value, .. } => {
                 if !matches!(ty, Ty::Usize | Ty::Bool) {
@@ -219,7 +218,6 @@ fn calls_expr(e: &Expr, calls: &mut Vec<String>) {
 fn calls_stmts(body: &[Stmt], calls: &mut Vec<String>) {
     for s in body {
         match s {
-            Stmt::Trap => {}
             Stmt::Bind { value, .. } | Stmt::Assign { value, .. } | Stmt::Evaluate(value) => {
                 calls_expr(value, calls)
             }
@@ -294,7 +292,6 @@ fn peak_expr(e: &Expr) -> u32 {
 fn peak_stmts(body: &[Stmt]) -> u32 {
     body.iter()
         .map(|s| match s {
-            Stmt::Trap => 0,
             Stmt::Bind { value, .. } | Stmt::Assign { value, .. } | Stmt::Evaluate(value) => {
                 peak_expr(value)
             }
@@ -399,47 +396,28 @@ fn validate(ir: &Module, layout: DeviceLayout) -> Res<()> {
     }
     Ok(())
 }
-/// `depth` counts bytes pushed for expression temporaries (`push {r0,r2}`).
-/// Locals live at fixed offsets from the frame's SP, so every SP-relative
-/// access must add `depth` while temporaries are on the stack.
 struct Gen {
     enc: Encoder,
-    depth: u16,
 }
 impl Gen {
     fn new(_ir: &Module) -> Self {
         Self {
             enc: Encoder::new(),
-            depth: 0,
         }
-    }
-    fn save(&mut self) {
-        self.enc.save0();
-        self.depth += 8;
-    }
-    fn restore(&mut self) {
-        self.enc.restore0();
-        self.depth -= 8;
-    }
-    fn load_local(&mut self, slot: u16) -> Res<()> {
-        self.enc.load(0, slot + self.depth)
-    }
-    fn store_local(&mut self, reg: u8, slot: u16) -> Res<()> {
-        self.enc.store(reg, slot + self.depth)
     }
     fn scalar(&mut self, e: &Expr, slots: &HashMap<String, u16>) -> Res<()> {
         match &e.kind {
             ExprKind::ConstI64(v) => self.enc.imm32(*v as u32),
             ExprKind::ConstBool(v) => self.enc.movs(0, u8::from(*v)),
-            ExprKind::Local(name) => {
-                self.load_local(*slots.get(name).ok_or("missing Thumb local slot")?)?
-            }
+            ExprKind::Local(name) => self
+                .enc
+                .load(0, *slots.get(name).ok_or("missing Thumb local slot")?)?,
             ExprKind::Binary { op, left, right } => {
                 self.scalar(left, slots)?;
-                self.save();
+                self.enc.save0();
                 self.scalar(right, slots)?;
                 self.enc.move_r1_r0();
-                self.restore();
+                self.enc.restore0();
                 match op.as_str() {
                     "+" => {
                         self.enc.h(0x1840);
@@ -477,10 +455,10 @@ impl Gen {
             ExprKind::Call { name, arguments } => {
                 if arguments.len() == 2 {
                     self.scalar(&arguments[0], slots)?;
-                    self.save();
+                    self.enc.save0();
                     self.scalar(&arguments[1], slots)?;
                     self.enc.move_r1_r0();
-                    self.restore();
+                    self.enc.restore0();
                 } else if arguments.len() == 1 {
                     self.scalar(&arguments[0], slots)?;
                 }
@@ -493,10 +471,9 @@ impl Gen {
     fn stmts(&mut self, body: &[Stmt], slots: &HashMap<String, u16>, bytes: u16) -> Res<()> {
         for s in body {
             match s {
-                Stmt::Trap => self.enc.trap(),
                 Stmt::Bind { name, value, .. } | Stmt::Assign { name, value } => {
                     self.scalar(value, slots)?;
-                    self.store_local(0, slots[name])?;
+                    self.enc.store(0, slots[name])?;
                 }
                 Stmt::Evaluate(e) => self.scalar(e, slots)?,
                 Stmt::Return { value, .. } => {
@@ -534,7 +511,7 @@ impl Gen {
                     // destroy an already evaluated earlier argument.
                     for (_, expr) in &a.inputs {
                         self.scalar(expr, slots)?;
-                        self.save();
+                        self.enc.save0();
                     }
                     for (reg, _) in a.inputs.iter().rev() {
                         match reg.as_str() {
@@ -542,7 +519,6 @@ impl Gen {
                             "r1" => self.enc.h(0xBC06),
                             _ => return Err("invalid Thumb asm register".into()),
                         }
-                        self.depth -= 8;
                     }
                     for ins in &a.instructions {
                         match ins.as_str() {
@@ -559,14 +535,10 @@ impl Gen {
                         if reg != "r0" {
                             return Err("unsupported Thumb asm output".into());
                         }
-                        self.store_local(0, slots[name])?;
+                        self.enc.store(0, slots[name])?;
                     }
                 }
             }
-            debug_assert_eq!(
-                self.depth, 0,
-                "Thumb temporaries must be popped at statement end"
-            );
         }
         Ok(())
     }
@@ -644,10 +616,8 @@ pub(crate) fn emit(ir: &Module, target: Target) -> Res<Vec<u8>> {
     let base = vectors.checked_mul(4).ok_or("Thumb vector size overflow")?;
     let reset_offset = base as u32;
     let mut generator = Gen::new(ir);
-    // Reset runs on the vector-provided MSP. Call main; on return stop with BKPT #1 (normal end).
+    // Reset runs on the vector-provided MSP. Call main and trap permanently on return.
     generator.enc.call("__main");
-    generator.enc.halt();
-    // Shared target for unexpected exceptions (vectors 2..): the runtime trap.
     generator.enc.trap();
     // Main and all reachable functions come from the already pruned IR.
     for f in &ir.functions {
@@ -666,8 +636,7 @@ pub(crate) fn emit(ir: &Module, target: Target) -> Res<Vec<u8>> {
     image[4..8].copy_from_slice(&(layout.flash.start + reset_offset + 1).to_le_bytes());
     // Other vectors deliberately point to a safe Thumb trap loop, rather than
     // leaving zero values that would branch outside defined Flash.
-    // Unexpected exceptions land on the trap (BKPT #0) emitted after the halt sequence.
-    let trap_addr = layout.flash.start + reset_offset + 4 + 4 + 1;
+    let trap_addr = layout.flash.start + reset_offset + 4 + 1;
     for i in 2..vectors {
         image[4 * i..4 * i + 4].copy_from_slice(&trap_addr.to_le_bytes());
     }
@@ -714,23 +683,5 @@ mod tests {
             &(layout.flash.start + u32::from(layout.vectors) * 4 + 1).to_le_bytes()
         );
         assert!(out.len() < 0x100 + layout.flash.len() as usize);
-        // Reset: BL __main; BKPT #1; B .   Exception vectors: BKPT #0; B .
-        let reset = off + usize::from(layout.vectors) * 4;
-        assert_eq!(
-            &out[reset + 4..reset + 6],
-            &[0x01, 0xbe],
-            "normal end is BKPT #1"
-        );
-        assert_eq!(
-            &out[reset + 8..reset + 10],
-            &[0x00, 0xbe],
-            "exception target is BKPT #0"
-        );
-        let vector2 = u32::from_le_bytes(out[off + 8..off + 12].try_into().unwrap());
-        assert_eq!(
-            vector2,
-            layout.flash.start + u32::from(layout.vectors) * 4 + 8 + 1,
-            "vector 2 points at the trap"
-        );
     }
 }

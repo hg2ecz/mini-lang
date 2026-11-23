@@ -100,7 +100,7 @@ Az `i64` és `usize` közötti általános implicit konverzió tiltott. **Az `u8
 | ARMv7-A Linux | `i8`–`i64`, `u8`–`u32`; korlátozott `u64` tárolás/konverzió | `u64` aritmetika és összehasonlítás tiltott |
 | Thumb/Cortex-M, AVR8, C64 | Korábbi skalár részhalmaz | Új szélességes típusok és `as` nem támogatottak |
 
-Az **`f32`/`f64` még egyik célgépen sem működik**. Az egész `as` ellenőrzött: a nem ábrázolható érték csapdát eredményez (Linux célokon 4.9 óta: illegális utasítás, SIGILL, a shellben 132-es állapot). Közvetlen pozitív egész literál jelenleg legfeljebb `i64::MAX` lehet. A Rust-fordítást és a generált programok végponttól végpontig futását ezen dokumentációfrissítés során nem igazoltuk.
+Az **`f32`/`f64` még egyik célgépen sem működik**. Az egész `as` ellenőrzött: a nem ábrázolható érték csapdát eredményez (Linux célokon tervezett 101-es kilépési kód). Közvetlen pozitív egész literál jelenleg legfeljebb `i64::MAX` lehet. A Rust-fordítást és a generált programok végponttól végpontig futását ezen dokumentációfrissítés során nem igazoltuk.
 
 ## 4. Változók: létrehozás és korlátok
 

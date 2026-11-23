@@ -138,7 +138,6 @@ fn check_expr(e: &Expr, fs: &HashMap<&str, &Function>) -> Res<()> {
 fn check_stmts(stmts: &[Stmt], f: &Function, fs: &HashMap<&str, &Function>) -> Res<()> {
     for s in stmts {
         match s {
-            Stmt::Trap => {}
             Stmt::Bind { ty, value, .. } => {
                 if !matches!(ty, Ty::Usize | Ty::Bool) {
                     return Err("8-bit locals must be usize/bool".into());
@@ -242,7 +241,6 @@ fn check_subset(ir: &Module) -> Res<()> {
     fn stmt_calls(ss: &[Stmt], out: &mut Vec<String>) {
         for s in ss {
             match s {
-                Stmt::Trap => {}
                 Stmt::Bind { value, .. } | Stmt::Assign { value, .. } | Stmt::Evaluate(value) => {
                     expr_calls(value, out)
                 }
@@ -319,7 +317,6 @@ fn expr_depth(e: &Expr) -> usize {
 fn max_depth(ss: &[Stmt]) -> usize {
     ss.iter()
         .map(|s| match s {
-            Stmt::Trap => 0,
             Stmt::Bind { value, .. } | Stmt::Assign { value, .. } | Stmt::Evaluate(value) => {
                 expr_depth(value)
             }
@@ -365,7 +362,6 @@ fn arg_staging_expr(e: &Expr, d: usize, arities: &mut Vec<usize>) {
 fn arg_staging_stmts(ss: &[Stmt], arities: &mut Vec<usize>) {
     for s in ss {
         match s {
-            Stmt::Trap => {}
             Stmt::Bind { value, .. } | Stmt::Assign { value, .. } | Stmt::Evaluate(value) => {
                 arg_staging_expr(value, 0, arities)
             }
@@ -682,7 +678,6 @@ impl C64 {
     ) -> Res<()> {
         for s in body {
             match s {
-                Stmt::Trap => self.jump(0x4c, "@mini.trap"),
                 Stmt::Bind { name, value, .. } | Stmt::Assign { name, value } => {
                     self.expr(value, fr, frames, fs, 0)?;
                     self.save16(var(fr, name)?);
@@ -1104,7 +1099,6 @@ impl Avr {
     ) -> Res<()> {
         for s in body {
             match s {
-                Stmt::Trap => self.jump(false, "@mini.trap"),
                 Stmt::Bind { name, value, .. } | Stmt::Assign { name, value } => {
                     self.expr(value, fr, frames, fs, 0)?;
                     self.save16(var(fr, name)?)?;

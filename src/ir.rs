@@ -59,8 +59,6 @@ pub(crate) enum Stmt {
     },
     Unsafe(Vec<Stmt>),
     Asm(AsmIr),
-    /// Fail-stop runtime error inserted by the compiler (e.g. failed bounds check).
-    Trap,
 }
 #[derive(Debug, Clone)]
 /// Target-specific clobbers are validated in check_asm() in main.rs
@@ -186,8 +184,6 @@ fn stmts(
     let mut result = Vec::new();
     for s in block {
         match s {
-            St::Trap => result.push(Stmt::Trap),
-            St::At(_) => {}
             St::Let(name, ty, e) => {
                 result.push(Stmt::Bind {
                     name: name.clone(),
@@ -262,107 +258,6 @@ fn stmts(
     Ok(result)
 }
 
-// The type checker gives every integer literal the type `i64`, even where it
-// has already verified that the literal fits the expected integer type
-// (`let x: usize = 5`, `f(5)` with a usize parameter, `x + 1`). Backends must
-// see consistent operand types, so each such literal gets its expected type.
-// Only the `ty` field of a literal changes; values were range-checked earlier.
-fn signatures(ast: &Ast) -> HashMap<String, Vec<Ty>> {
-    let mut sigs: HashMap<String, Vec<Ty>> = ast
-        .funcs
-        .iter()
-        .map(|f| {
-            (
-                f.name.clone(),
-                f.args.iter().map(|(_, t)| t.clone()).collect(),
-            )
-        })
-        .collect();
-    for (name, fields) in &ast.structs {
-        sigs.insert(
-            name.clone(),
-            fields.iter().map(|(_, t)| t.clone()).collect(),
-        );
-    }
-    sigs
-}
-fn literal_type(e: &mut Expr, expected: &Ty) {
-    if matches!(e.kind, ExprKind::ConstI64(_))
-        && e.ty == Ty::I64
-        && matches!(expected, Ty::Usize | Ty::Int { .. })
-    {
-        e.ty = expected.clone();
-    }
-}
-fn literal_types_expr(e: &mut Expr, sigs: &HashMap<String, Vec<Ty>>) {
-    match &mut e.kind {
-        ExprKind::Call { name, arguments } => {
-            if let Some(params) = sigs.get(name.as_str()) {
-                for (argument, ty) in arguments.iter_mut().zip(params) {
-                    literal_type(argument, ty);
-                }
-            }
-            for argument in arguments {
-                literal_types_expr(argument, sigs);
-            }
-        }
-        ExprKind::Binary { left, right, .. } => {
-            let (lt, rt) = (left.ty.clone(), right.ty.clone());
-            literal_type(left, &rt);
-            literal_type(right, &lt);
-            literal_types_expr(left, sigs);
-            literal_types_expr(right, sigs);
-        }
-        ExprKind::Neg(value) | ExprKind::Cast { value, .. } => literal_types_expr(value, sigs),
-        _ => {}
-    }
-}
-fn literal_types_stmts(
-    body: &mut [Stmt],
-    vars: &HashMap<String, Ty>,
-    result: &Ty,
-    sigs: &HashMap<String, Vec<Ty>>,
-) {
-    for s in body {
-        match s {
-            Stmt::Trap => {}
-            Stmt::Bind { ty, value, .. } => {
-                literal_types_expr(value, sigs);
-                literal_type(value, ty);
-            }
-            Stmt::Assign { name, value } => {
-                literal_types_expr(value, sigs);
-                if let Some(ty) = vars.get(name.as_str()) {
-                    literal_type(value, ty);
-                }
-            }
-            Stmt::Return { value, cleanup } => {
-                literal_types_expr(value, sigs);
-                literal_type(value, result);
-                for e in cleanup {
-                    literal_types_expr(e, sigs);
-                }
-            }
-            Stmt::Evaluate(e) => literal_types_expr(e, sigs),
-            Stmt::If { condition, yes, no } => {
-                literal_types_expr(condition, sigs);
-                literal_types_stmts(yes, vars, result, sigs);
-                literal_types_stmts(no, vars, result, sigs);
-            }
-            Stmt::While { condition, body } => {
-                literal_types_expr(condition, sigs);
-                literal_types_stmts(body, vars, result, sigs);
-            }
-            Stmt::Unsafe(body) => literal_types_stmts(body, vars, result, sigs),
-            Stmt::Asm(a) => {
-                for (_, e) in &mut a.inputs {
-                    literal_types_expr(e, sigs);
-                }
-            }
-        }
-    }
-}
-
 pub(crate) fn lower(
     ast: &Ast,
     frames: &HashMap<String, Frame>,
@@ -379,9 +274,7 @@ pub(crate) fn lower(
                 .map(|(n, (_, t))| (n.clone(), t.clone()))
                 .collect();
             let mut life = Lifetime::default();
-            let mut instructions = stmts(&f.body, &mut life, &vars, ast, fs)?;
-            let sigs = signatures(ast);
-            literal_types_stmts(&mut instructions, &vars, &f.ret, &sigs);
+            let instructions = stmts(&f.body, &mut life, &vars, ast, fs)?;
             let end_cleanup = if f.ret == Ty::Void {
                 live_cleanups(&life, &vars, fs)
             } else {
@@ -425,7 +318,6 @@ fn collect_expr_calls(e: &Expr, calls: &mut Vec<String>, defined: &HashSet<&str>
 fn collect_stmt_calls(body: &[Stmt], calls: &mut Vec<String>, defined: &HashSet<&str>) {
     for stmt in body {
         match stmt {
-            Stmt::Trap => {}
             Stmt::Bind { value, .. } | Stmt::Assign { value, .. } | Stmt::Evaluate(value) => {
                 collect_expr_calls(value, calls, defined)
             }
@@ -495,10 +387,8 @@ mod tests {
         let ast = P::new(lex(source).unwrap()).parse().unwrap();
         let (fs, frames) = check(&ast).unwrap();
         let hir = lower(&ast, &frames, &fs).unwrap();
-        // dump() is pretty-printed for humans; assert on the compact form.
-        let compact = format!("{hir:?}");
-        assert!(compact.contains("ConstBool(true)"));
-        assert!(compact.contains("Struct(\"R\")"));
+        assert!(hir.dump().contains("ConstBool(true)"));
+        assert!(hir.dump().contains("Struct(\"R\")"));
     }
 }
 

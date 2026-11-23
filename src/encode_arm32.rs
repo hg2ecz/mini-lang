@@ -249,9 +249,10 @@ impl Encoder {
         self.str(2, 10, 0);
         self.str(3, 10, 4);
     }
-    /// A32 UDF #0 (permanently undefined); Linux delivers SIGILL. Mini runtime trap.
     pub(crate) fn trap(&mut self) {
-        self.word(0xE7F0_00F0);
+        self.imm32(0, 101);
+        self.imm32(7, 1);
+        self.svc();
     }
     pub(crate) fn asm_instruction(&mut self, name: &str) -> Res<()> {
         match name {

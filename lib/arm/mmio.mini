@@ -1,6 +1,6 @@
 // Cortex-M32 hardware access. The caller must validate the peripheral address,
 // clock enables, access width and hardware-specific register semantics.
-pub unsafe fn write32(address: usize, value: usize) {
+unsafe fn write32(address: usize, value: usize) {
     unsafe {
         asm {
             in r0 = address
@@ -11,7 +11,7 @@ pub unsafe fn write32(address: usize, value: usize) {
     }
 }
 
-pub unsafe fn read32(address: usize) -> usize {
+unsafe fn read32(address: usize) -> usize {
     let result: usize = 0
     unsafe {
         asm {

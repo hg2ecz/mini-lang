@@ -74,12 +74,12 @@ run_case borrowed_struct 42 'struct R { value:i64; ok:bool } fn get(v:R)->i64 { 
 run_case signed_compare 42 'program { let x:i64=-1; if x < 0 { return 42 } else { return 1 } }'
 run_case unsigned_compare 42 'program { let x:usize=10; let y:usize=9; if x > y { return 42 } else { return 1 } }'
 
-run_case signed_overflow_add 101 'program { return 9223372036854775807 + 1 }'
-run_case signed_overflow_sub 101 'program { return -9223372036854775807 - 2 }'
-run_case signed_overflow_mul 101 'program { return 3037000500 * 3037000500 }'
-run_case unsigned_underflow 101 'program { let a:usize=0; let b:usize=1; return a - b }'
-run_case divide_zero 101 'program { return 5 / 0 }'
-run_case division_overflow 101 'program { let a:i64=-9223372036854775807 - 1; return a / -1 }'
+run_case signed_overflow_add 132 'program { return 9223372036854775807 + 1 }'
+run_case signed_overflow_sub 132 'program { return -9223372036854775807 - 2 }'
+run_case signed_overflow_mul 132 'program { return 3037000500 * 3037000500 }'
+run_case unsigned_underflow 132 'program { let a:usize=0; let b:usize=1; return (a - b) as i64 }'
+run_case divide_zero 132 'program { return 5 / 0 }'
+run_case division_overflow 132 'program { let a:i64=-9223372036854775807 - 1; return a / -1 }'
 # Source-relative include resolution is required: run the original file, not a copy.
 set +e
 "${runner[@]}" "$work/target";status=$?

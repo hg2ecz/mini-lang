@@ -1,8 +1,11 @@
+// Must be rejected: after the if, g is dropped on one path and alive on the other.
 struct Guard { code:i64 }
 fn __drop_Guard(g:Guard) {}
 fn make()->Guard {unsafe{return Guard(1)}}
 program {
     let g:Guard=make()
-    if true { drop g } else { return g.code }
+    let c:bool=true
+    if c { drop g } else { let_nothing_here_is_fine() }
     return 42
 }
+fn let_nothing_here_is_fine() {}

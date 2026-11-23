@@ -16,7 +16,7 @@ set +e
 "$TMP/overflow"
 status=$?
 set -e
-[[ $status -eq 101 ]] || { echo "overflow check failed: $status" >&2; exit 1; }
+[[ $status -eq 132 ]] || { echo "overflow check failed: $status" >&2; exit 1; }
 if "$BIN" examples/usize_reject.mini -o "$TMP/reject" >/dev/null 2>&1; then
  echo 'implicit signed-to-usize conversion accepted' >&2; exit 1
 fi

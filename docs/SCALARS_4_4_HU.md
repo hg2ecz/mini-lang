@@ -1,6 +1,6 @@
 # Mini 4.4 – Egész típusok ARM Linuxon
 
-A Mini az `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `usize` és `bool` típusokat kezeli. Az `as` **ellenőrzött** egész konverzió: ha az érték nem fér el a céltípusban, a futó program 101-es hibakóddal leáll. A számolás sem szűkíthet csendben.
+A Mini az `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `usize` és `bool` típusokat kezeli. Az `as` **ellenőrzött** egész konverzió: ha az érték nem fér el a céltípusban, a futó program trappel leáll (Linuxon 4.9 óta SIGILL, a shellben 132). A számolás sem szűkíthet csendben.
 
 ```mini
 fn increment(x: u8) -> u8 {

@@ -36,7 +36,7 @@ arguments are taken from the low 32 bits of their Mini `i64` values.
   Unknown and unsafe instructions are rejected.
 - `unsafe` syscall wrappers accepting raw pointer values cannot promise memory
   safety. Higher-level safe wrappers will need explicit bounds and ownership.
-- Arithmetic traps use a Linux `exit(101)` syscall; code generation is not
+- Arithmetic traps use an illegal instruction (`udf #0`, SIGILL; shell status 132 – a Linux `exit(101)` syscall until 4.8); code generation is not
   a guarantee of complete language or memory safety.
 - This backend uses a fixed-address, non-PIE `ET_EXEC` ELF32. It requests a
   non-executable stack but **does not provide PIE/ASLR for its text segment**.
